@@ -5,8 +5,10 @@ import { auth } from '@/lib/firebase/client';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 
 export interface AuthUser extends FirebaseUser {
-  tenantId?: string;
-  role?: 'admin' | 'teacher' | 'parent';
+  tenantId: string; // Required - from custom claims
+  role: 'admin' | 'teacher' | 'parent'; // Required - from custom claims
+  name: string; // Computed from displayName or email (always has fallback)
+  email: string; // Overriding to make non-nullable (always available for logged in users)
 }
 
 export function useAuth() {
@@ -18,10 +20,15 @@ export function useAuth() {
       if (firebaseUser) {
         // Get custom claims (role and tenantId)
         const idTokenResult = await firebaseUser.getIdTokenResult();
+        const email = firebaseUser.email || 'no-email@unknown.com';
+        const tenantId = idTokenResult.claims.tenantId as string || 'unknown';
+        const role = idTokenResult.claims.role as 'admin' | 'teacher' | 'parent' || 'admin';
         setUser({
           ...firebaseUser,
-          tenantId: idTokenResult.claims.tenantId as string,
-          role: idTokenResult.claims.role as 'admin' | 'teacher' | 'parent',
+          email, // Override to ensure non-null
+          tenantId,
+          role,
+          name: firebaseUser.displayName || email,
         });
       } else {
         setUser(null);

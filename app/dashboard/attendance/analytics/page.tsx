@@ -30,8 +30,8 @@ import {
   ArrowLeftIcon,
   ArrowDownTrayIcon,
   ChartBarIcon,
-  TrendingUpIcon,
-  TrendingDownIcon,
+  ArrowTrendingUpIcon,
+  ArrowTrendingDownIcon,
   ExclamationTriangleIcon,
   CalendarIcon,
 } from '@heroicons/react/24/outline';
@@ -454,9 +454,9 @@ export default function AttendanceAnalyticsPage() {
               <p className="text-sm text-gray-600">Attendance Trend</p>
               <div className="flex items-center gap-2 mt-1">
                 {overallStats.trend > 0 ? (
-                  <TrendingUpIcon className="h-6 w-6 text-green-600" />
+                  <ArrowTrendingUpIcon className="h-6 w-6 text-green-600" />
                 ) : overallStats.trend < 0 ? (
-                  <TrendingDownIcon className="h-6 w-6 text-red-600" />
+                  <ArrowTrendingDownIcon className="h-6 w-6 text-red-600" />
                 ) : (
                   <ChartBarIcon className="h-6 w-6 text-gray-600" />
                 )}
@@ -557,8 +557,8 @@ export default function AttendanceAnalyticsPage() {
                       <p className="text-xs text-gray-600">{cls.totalStudents} students</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      {cls.trend === 'up' && <TrendingUpIcon className="h-5 w-5 text-green-600" />}
-                      {cls.trend === 'down' && <TrendingDownIcon className="h-5 w-5 text-red-600" />}
+                      {cls.trend === 'up' && <ArrowTrendingUpIcon className="h-5 w-5 text-green-600" />}
+                      {cls.trend === 'down' && <ArrowTrendingDownIcon className="h-5 w-5 text-red-600" />}
                       <span className={`text-lg font-bold ${category.color}`}>
                         {cls.averageRate.toFixed(1)}%
                       </span>
@@ -686,7 +686,7 @@ export default function AttendanceAnalyticsPage() {
             {overallStats.trend > 2 && (
               <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
                 <div className="flex items-start gap-3">
-                  <TrendingUpIcon className="h-6 w-6 text-green-600 mt-1" />
+                  <ArrowTrendingUpIcon className="h-6 w-6 text-green-600 mt-1" />
                   <div>
                     <h3 className="font-semibold text-green-900 mb-1">Positive Trend Detected</h3>
                     <p className="text-sm text-green-700">
@@ -701,7 +701,7 @@ export default function AttendanceAnalyticsPage() {
             {overallStats.trend < -2 && (
               <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
                 <div className="flex items-start gap-3">
-                  <TrendingDownIcon className="h-6 w-6 text-red-600 mt-1" />
+                  <ArrowTrendingDownIcon className="h-6 w-6 text-red-600 mt-1" />
                   <div>
                     <h3 className="font-semibold text-red-900 mb-1">Declining Attendance Alert</h3>
                     <p className="text-sm text-red-700">

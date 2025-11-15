@@ -29,8 +29,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
   ArrowLeftIcon,
-  TrendingUpIcon,
-  TrendingDownIcon,
+  ArrowTrendingUpIcon,
+  ArrowTrendingDownIcon,
   ChartBarIcon,
 } from '@heroicons/react/24/outline';
 import {
@@ -490,7 +490,7 @@ export default function AcademicAnalyticsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <TrendingUpIcon className="h-5 w-5 text-green-600" />
+              <ArrowTrendingUpIcon className="h-5 w-5 text-green-600" />
               Top 10 Performers
             </CardTitle>
           </CardHeader>
@@ -528,7 +528,7 @@ export default function AcademicAnalyticsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <TrendingDownIcon className="h-5 w-5 text-red-600" />
+              <ArrowTrendingDownIcon className="h-5 w-5 text-red-600" />
               Students Needing Support
             </CardTitle>
           </CardHeader>

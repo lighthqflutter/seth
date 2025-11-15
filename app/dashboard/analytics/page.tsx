@@ -33,8 +33,8 @@ import {
   UsersIcon,
   ChartBarIcon,
   ClockIcon,
-  TrendingUpIcon,
-  TrendingDownIcon,
+  ArrowTrendingUpIcon,
+  ArrowTrendingDownIcon,
   ExclamationTriangleIcon,
   CheckCircleIcon,
   CalendarIcon,
@@ -428,7 +428,7 @@ export default function AnalyticsDashboard() {
             <div className="space-y-3">
               {insights.map((insight, index) => (
                 <div key={index} className="flex items-start gap-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <TrendingDownIcon className="h-5 w-5 text-yellow-600 mt-0.5" />
+                  <ArrowTrendingDownIcon className="h-5 w-5 text-yellow-600 mt-0.5" />
                   <p className="text-sm text-yellow-800">{insight}</p>
                 </div>
               ))}

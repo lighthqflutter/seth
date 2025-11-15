@@ -29,8 +29,8 @@ import { Button } from '@/components/ui/button';
 import {
   ArrowLeftIcon,
   MagnifyingGlassIcon,
-  TrendingUpIcon,
-  TrendingDownIcon,
+  ArrowTrendingUpIcon,
+  ArrowTrendingDownIcon,
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 import {
@@ -415,8 +415,8 @@ export default function StudentAnalyticsPage() {
                       {prediction.nextTermPrediction}%
                     </p>
                     <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                      {prediction.trend === 'improving' && <TrendingUpIcon className="h-3 w-3 text-green-600" />}
-                      {prediction.trend === 'declining' && <TrendingDownIcon className="h-3 w-3 text-red-600" />}
+                      {prediction.trend === 'improving' && <ArrowTrendingUpIcon className="h-3 w-3 text-green-600" />}
+                      {prediction.trend === 'declining' && <ArrowTrendingDownIcon className="h-3 w-3 text-red-600" />}
                       {prediction.trend.charAt(0).toUpperCase() + prediction.trend.slice(1)}
                     </p>
                   </>
