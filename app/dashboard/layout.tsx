@@ -71,18 +71,22 @@ export default function DashboardLayout({
       <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
-            {/* Logo */}
-            <div className="flex items-center flex-1">
-              <Link href="/dashboard" className="text-xl font-bold text-blue-600">
-                SETH SchoolPortal
-              </Link>
-              <span className="ml-3 text-sm text-gray-500 hidden sm:block">
+            {/* User Role Badge (Desktop) */}
+            <div className="hidden md:flex items-center">
+              <span className="text-sm text-gray-500">
                 {user.role?.charAt(0).toUpperCase() + user.role?.slice(1)}
               </span>
             </div>
 
-            {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center gap-4">
+            {/* Mobile Logo */}
+            <div className="md:hidden flex items-center">
+              <Link href="/dashboard" className="text-xl font-bold text-blue-600">
+                SETH SchoolPortal
+              </Link>
+            </div>
+
+            {/* Desktop Navigation - Aligned to Right */}
+            <div className="hidden md:flex items-center gap-4 ml-auto">
               <span className="text-sm text-gray-600">{user.email}</span>
               <Button variant="outline" size="sm" onClick={handleLogout}>
                 Logout
@@ -149,7 +153,13 @@ export default function DashboardLayout({
         <aside className="hidden md:flex md:flex-shrink-0">
           <div className="flex w-64 flex-col">
             <div className="flex flex-col flex-grow bg-white border-r border-gray-200 pt-5 pb-4 overflow-y-auto">
-              <nav className="mt-5 flex-1 px-3 space-y-1">
+              {/* Logo at top of sidebar */}
+              <div className="px-6 mb-8">
+                <Link href="/dashboard" className="text-2xl font-bold text-blue-600">
+                  SETH SchoolPortal
+                </Link>
+              </div>
+              <nav className="flex-1 px-3 space-y-1">
                 {filteredNav.map((item) => (
                   <Link
                     key={item.name}
