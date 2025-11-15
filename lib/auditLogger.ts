@@ -85,10 +85,15 @@ export async function logAudit(params: LogAuditParams): Promise<void> {
   // Calculate changed fields if both before and after are provided
   let changes: { before?: any; after?: any; fields?: string[] } | undefined;
   if (before !== undefined || after !== undefined) {
-    changes = {
-      before,
-      after,
-    };
+    changes = {};
+
+    // Only add before/after if they're defined
+    if (before !== undefined) {
+      changes.before = before;
+    }
+    if (after !== undefined) {
+      changes.after = after;
+    }
 
     // Calculate changed fields for updates
     if (before && after && action === 'update') {

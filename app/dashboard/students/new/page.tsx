@@ -128,15 +128,13 @@ export default function NewStudentPage() {
     setSaving(true);
 
     try {
-      const studentData = {
+      const studentData: any = {
         firstName: formData.firstName.trim(),
-        middleName: formData.middleName.trim() || undefined,
         lastName: formData.lastName.trim(),
         admissionNumber: formData.admissionNumber.trim(),
         dateOfBirth: Timestamp.fromDate(new Date(formData.dateOfBirth)),
         gender: formData.gender,
         currentClassId: formData.currentClassId,
-        address: formData.address.trim() || undefined,
         guardianIds: [],
         isActive: true,
         admissionDate: Timestamp.fromDate(new Date()),
@@ -144,6 +142,14 @@ export default function NewStudentPage() {
         createdAt: new Date(),
         updatedAt: new Date(),
       };
+
+      // Only add optional fields if they have values
+      if (formData.middleName.trim()) {
+        studentData.middleName = formData.middleName.trim();
+      }
+      if (formData.address.trim()) {
+        studentData.address = formData.address.trim();
+      }
 
       const docRef = await addDoc(collection(db, 'students'), studentData);
 
@@ -214,18 +220,21 @@ export default function NewStudentPage() {
             <div className="space-y-4">
               <h2 className="text-lg font-semibold text-gray-900 border-b pb-2">Personal Information</h2>
 
-              {/* Photo Upload Placeholder */}
+              {/* Photo Upload - Coming Soon */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Student Photo (Optional)
+                  Student Photo
                 </label>
-                <div className="flex items-center gap-4">
-                  <div className="h-24 w-24 rounded-full bg-gray-100 flex items-center justify-center text-gray-400">
+                <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="h-24 w-24 rounded-full bg-gray-200 flex items-center justify-center text-gray-400">
                     <span className="text-3xl">📷</span>
                   </div>
                   <div className="text-sm text-gray-600">
-                    <p className="mb-1">Photo upload will be available soon</p>
-                    <p className="text-xs text-gray-500">Supported formats: JPG, PNG (max 2MB)</p>
+                    <p className="mb-1 font-medium">Photo upload coming soon</p>
+                    <p className="text-xs text-gray-500">
+                      Photo management will be available in a future update.<br />
+                      For now, student profiles can be created without photos.
+                    </p>
                   </div>
                 </div>
               </div>
