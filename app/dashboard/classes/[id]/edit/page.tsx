@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,12 @@ interface FormErrors {
   academicYear?: string;
 }
 
+interface Teacher {
+  id: string;
+  name: string;
+  email: string;
+}
+
 export default function EditClassPage() {
   const router = useRouter();
   const params = useParams();
@@ -36,13 +42,16 @@ export default function EditClassPage() {
     academicYear: '',
     teacherId: '',
   });
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [loadingTeachers, setLoadingTeachers] = useState(true);
   const [errors, setErrors] = useState<FormErrors>({});
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
-    const loadClass = async () => {
+    const loadData = async () => {
       try {
+        // Load class data
         const classDoc = await getDoc(doc(db, 'classes', classId));
 
         if (!classDoc.exists()) {
@@ -67,9 +76,40 @@ export default function EditClassPage() {
     };
 
     if (classId) {
-      loadClass();
+      loadData();
     }
   }, [classId]);
+
+  useEffect(() => {
+    const loadTeachers = async () => {
+      if (!user?.tenantId) return;
+
+      try {
+        const teachersQuery = query(
+          collection(db, 'users'),
+          where('tenantId', '==', user.tenantId),
+          where('role', '==', 'teacher'),
+          where('isActive', '==', true),
+          orderBy('name')
+        );
+
+        const snapshot = await getDocs(teachersQuery);
+        const teachersData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          name: doc.data().name,
+          email: doc.data().email,
+        })) as Teacher[];
+
+        setTeachers(teachersData);
+        setLoadingTeachers(false);
+      } catch (error) {
+        console.error('Error loading teachers:', error);
+        setLoadingTeachers(false);
+      }
+    };
+
+    loadTeachers();
+  }, [user?.tenantId]);
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -106,13 +146,20 @@ export default function EditClassPage() {
     setSaving(true);
 
     try {
-      const updateData = {
+      const updateData: any = {
         name: formData.name.trim(),
         level: formData.level.trim(),
         academicYear: formData.academicYear.trim(),
-        teacherId: formData.teacherId.trim() || undefined,
         updatedAt: new Date(),
       };
+
+      // Only add teacherId if one is selected
+      if (formData.teacherId) {
+        updateData.teacherId = formData.teacherId;
+      } else {
+        // Remove teacherId if cleared
+        updateData.teacherId = null;
+      }
 
       await updateDoc(doc(db, 'classes', classId), updateData);
       router.push('/dashboard/classes');
@@ -221,18 +268,41 @@ export default function EditClassPage() {
               )}
             </div>
 
-            {/* Teacher ID (Optional) */}
+            {/* Class Teacher (Optional) */}
             <div>
               <label htmlFor="teacherId" className="block text-sm font-medium text-gray-700 mb-2">
-                Teacher ID (Optional)
+                Class Teacher (Optional)
               </label>
-              <Input
-                id="teacherId"
-                type="text"
-                value={formData.teacherId}
-                onChange={(e) => setFormData({ ...formData, teacherId: e.target.value })}
-                placeholder="Leave empty if no teacher assigned"
-              />
+              {loadingTeachers ? (
+                <div className="text-sm text-gray-500">Loading teachers...</div>
+              ) : teachers.length === 0 ? (
+                <div className="text-sm text-gray-600 bg-gray-50 p-4 rounded-lg">
+                  <p>No teachers available. Create a teacher first.</p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="mt-3"
+                    onClick={() => router.push('/dashboard/teachers/new')}
+                  >
+                    Add Teacher
+                  </Button>
+                </div>
+              ) : (
+                <select
+                  id="teacherId"
+                  value={formData.teacherId}
+                  onChange={(e) => setFormData({ ...formData, teacherId: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">No teacher assigned</option>
+                  {teachers.map((teacher) => (
+                    <option key={teacher.id} value={teacher.id}>
+                      {teacher.name} ({teacher.email})
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             {/* Error Message */}
