@@ -23,11 +23,13 @@ service cloud.firestore {
       allow write: if false; // Only via admin SDK
     }
 
-    // Users: Can read/update own profile
+    // Users: Can read/update own profile, admins can create teachers
     match /users/{userId} {
-      allow read: if request.auth.uid == userId;
+      allow read: if request.auth.uid == userId ||
+                     (request.auth != null && get(/databases/$(database)/documents/users/$(userId)).data.tenantId == getUserTenant());
       allow update: if request.auth.uid == userId;
-      allow create, delete: if false; // Only via admin SDK
+      allow create: if isAdmin() && request.resource.data.tenantId == getUserTenant();
+      allow delete: if false; // Only via admin SDK
     }
 
     // Students: Tenant-scoped access
