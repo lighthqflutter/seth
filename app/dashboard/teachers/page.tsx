@@ -41,15 +41,24 @@ export default function TeachersPage() {
       orderBy('name')
     );
 
-    const unsubscribe = onSnapshot(teachersQuery, (snapshot) => {
-      const teachersData = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Teacher[];
+    const unsubscribe = onSnapshot(
+      teachersQuery,
+      (snapshot) => {
+        const teachersData = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as Teacher[];
 
-      setTeachers(teachersData);
-      setLoading(false);
-    });
+        setTeachers(teachersData);
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Error loading teachers:', error);
+        // If index is missing or permission denied, show empty state
+        setTeachers([]);
+        setLoading(false);
+      }
+    );
 
     return () => unsubscribe();
   }, [user?.tenantId]);
