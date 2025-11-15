@@ -40,16 +40,26 @@ export default function StudentsPage() {
       orderBy('admissionNumber')
     );
 
-    const unsubscribe = onSnapshot(studentsQuery, (snapshot) => {
-      const studentsData = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Student[];
+    const unsubscribe = onSnapshot(
+      studentsQuery,
+      (snapshot) => {
+        const studentsData = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as Student[];
 
-      setStudents(studentsData);
-      setFilteredStudents(studentsData);
-      setLoading(false);
-    });
+        setStudents(studentsData);
+        setFilteredStudents(studentsData);
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Error loading students:', error);
+        // If index is missing, still show empty state
+        setStudents([]);
+        setFilteredStudents([]);
+        setLoading(false);
+      }
+    );
 
     return () => unsubscribe();
   }, [user?.tenantId]);

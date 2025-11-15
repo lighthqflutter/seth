@@ -55,9 +55,9 @@ export default function DashboardLayout({
     { name: 'Teachers', href: '/dashboard/teachers', icon: '👨‍🏫', roles: ['admin'] },
     { name: 'Classes', href: '/dashboard/classes', icon: '📚', roles: ['admin', 'teacher'] },
     { name: 'Subjects', href: '/dashboard/subjects', icon: '📖', roles: ['admin'] },
-    { name: 'Scores', href: '/dashboard/scores', icon: '📝', roles: ['admin', 'teacher'] },
+    { name: 'Scores', href: '/dashboard/scores/entry', icon: '📝', roles: ['admin', 'teacher'] },
     { name: 'Results', href: '/dashboard/results', icon: '📊' },
-    { name: 'Settings', href: '/dashboard/settings', icon: '⚙️', roles: ['admin'] },
+    { name: 'Settings', href: '/dashboard/settings/email-preferences', icon: '⚙️', roles: ['admin'] },
   ];
 
   // Filter navigation based on user role
@@ -72,9 +72,9 @@ export default function DashboardLayout({
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
             {/* Logo */}
-            <div className="flex items-center">
+            <div className="flex items-center flex-1">
               <Link href="/dashboard" className="text-xl font-bold text-blue-600">
-                SchoolPortal
+                SETH SchoolPortal
               </Link>
               <span className="ml-3 text-sm text-gray-500 hidden sm:block">
                 {user.role?.charAt(0).toUpperCase() + user.role?.slice(1)}
