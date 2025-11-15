@@ -55,7 +55,7 @@ export default function DashboardLayout({
     { name: 'Teachers', href: '/dashboard/teachers', icon: '👨‍🏫', roles: ['admin'] },
     { name: 'Classes', href: '/dashboard/classes', icon: '📚', roles: ['admin', 'teacher'] },
     { name: 'Subjects', href: '/dashboard/subjects', icon: '📖', roles: ['admin'] },
-    { name: 'Scores', href: '/dashboard/scores/entry', icon: '📝', roles: ['admin', 'teacher'] },
+    { name: 'Scores', href: '/dashboard/scores', icon: '📝', roles: ['admin', 'teacher'] },
     { name: 'Results', href: '/dashboard/results', icon: '📊' },
     { name: 'Settings', href: '/dashboard/settings/email-preferences', icon: '⚙️', roles: ['admin'] },
   ];
