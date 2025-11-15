@@ -1,36 +1,82 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# School Portal - Multi-Tenant School Management System
 
-## Getting Started
+Modern, mobile-first school management platform built with Next.js 15, React 19, Firebase, and Tailwind CSS v4.
 
-First, run the development server:
+## 🚀 Quick Start
+
+### 1. Start Firebase Emulator (Terminal 1)
+
+```bash
+npm run emulator
+```
+
+This starts the Firebase Emulator UI at **http://127.0.0.1:4000**
+
+### 2. Start Next.js Dev Server (Terminal 2)
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Visit: **http://localhost:3000**
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 📁 Key Files
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `app/page.tsx` - Landing page
+- `lib/firebase/client.ts` - Firebase client SDK (connects to emulator)
+- `lib/firebase/admin.ts` - Firebase Admin SDK (server-side)
+- `firestore.rules` - Security rules (tenant isolation)
+- `components/ui/` - Reusable UI components
+- `hooks/useAuth.ts` - Authentication hook
+- `types/index.ts` - TypeScript type definitions
 
-## Learn More
+## 🔥 Firebase Emulator
 
-To learn more about Next.js, take a look at the following resources:
+All Firebase services run locally - no production setup needed!
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Firestore**: http://127.0.0.1:8080
+- **Auth**: http://127.0.0.1:9099
+- **Storage**: http://127.0.0.1:9199
+- **UI Dashboard**: http://127.0.0.1:4000
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Data persists in `./emulator-data` directory.
 
-## Deploy on Vercel
+## 🎨 Tech Stack
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **Next.js 15** - React Server Components, App Router
+- **React 19** - Latest React features
+- **TypeScript** - Type safety
+- **Tailwind CSS v4** - Utility-first styling
+- **shadcn/ui** - Accessible component library
+- **Firebase** - Backend (Firestore, Auth, Storage)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🏗️ Architecture
+
+### Multi-Tenancy
+- Single database with `tenant_id` column
+- Firestore Security Rules enforce isolation
+- Custom auth claims for role + tenantId
+
+### Collections
+- `tenants` - Schools
+- `users` - Admins, teachers, parents
+- `students` - Student records
+- `scores` - Assessment scores
+- `results` - Report cards
+
+## 📝 Commands
+
+```bash
+npm run dev        # Start Next.js dev server
+npm run emulator   # Start Firebase emulators
+npm run build      # Build for production
+```
+
+## 📚 Documentation
+
+See `/docs` folder:
+- Business Analysis
+- Architecture Design
+- UX/UI Design System
+
+Built with ❤️ following the BMAD methodology

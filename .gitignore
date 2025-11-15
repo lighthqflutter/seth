@@ -33,6 +33,13 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# Firebase credentials (NEVER commit these)
+firebase-service-account*.json
+*firebase-config*.txt
+
+# Sensitive documentation
+CLOUDFLARE_ENVIRONMENT_VARIABLES.md
+
 # vercel
 .vercel
 

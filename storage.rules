@@ -1,0 +1,35 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // School logos - allow authenticated users to read, only admins to write
+    match /schools/{tenantId}/logo/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null &&
+                     request.auth.token.role == 'admin' &&
+                     request.auth.token.tenantId == tenantId;
+    }
+
+    // Student photos - allow authenticated users from same tenant
+    match /students/{tenantId}/{studentId}/{allPaths=**} {
+      allow read: if request.auth != null &&
+                     request.auth.token.tenantId == tenantId;
+      allow write: if request.auth != null &&
+                      request.auth.token.role in ['admin', 'teacher'] &&
+                      request.auth.token.tenantId == tenantId;
+    }
+
+    // Report cards - allow authenticated users from same tenant
+    match /reports/{tenantId}/{allPaths=**} {
+      allow read: if request.auth != null &&
+                     request.auth.token.tenantId == tenantId;
+      allow write: if request.auth != null &&
+                      request.auth.token.role in ['admin', 'teacher'] &&
+                      request.auth.token.tenantId == tenantId;
+    }
+
+    // Default: deny all other access
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

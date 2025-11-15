@@ -1,0 +1,103 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper function: Get user's tenant from their user document
+    function getUserTenant() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId;
+    }
+
+    // Helper function: Check if user is admin
+    function isAdmin() {
+      return request.auth.token.role == 'admin';
+    }
+
+    // Helper function: Check if user is teacher or admin
+    function isTeacher() {
+      return request.auth.token.role in ['teacher', 'admin'];
+    }
+
+    // Tenants: Only authenticated users can read their own tenant
+    match /tenants/{tenantId} {
+      allow read: if request.auth != null && getUserTenant() == tenantId;
+      allow write: if false; // Only via admin SDK
+    }
+
+    // Users: Can read/update own profile
+    match /users/{userId} {
+      allow read: if request.auth.uid == userId;
+      allow update: if request.auth.uid == userId;
+      allow create, delete: if false; // Only via admin SDK
+    }
+
+    // Students: Tenant-scoped access
+    match /students/{studentId} {
+      allow read: if request.auth != null &&
+                     resource.data.tenantId == getUserTenant();
+      allow create: if isAdmin() &&
+                       request.resource.data.tenantId == getUserTenant();
+      allow update, delete: if isAdmin() &&
+                               resource.data.tenantId == getUserTenant();
+    }
+
+    // Classes: Tenant-scoped
+    match /classes/{classId} {
+      allow read: if request.auth != null &&
+                     resource.data.tenantId == getUserTenant();
+      allow write: if isAdmin() &&
+                      request.resource.data.tenantId == getUserTenant();
+    }
+
+    // Subjects: Tenant-scoped
+    match /subjects/{subjectId} {
+      allow read: if request.auth != null &&
+                     resource.data.tenantId == getUserTenant();
+      allow write: if isAdmin() &&
+                      request.resource.data.tenantId == getUserTenant();
+    }
+
+    // Terms: Tenant-scoped
+    match /terms/{termId} {
+      allow read: if request.auth != null &&
+                     resource.data.tenantId == getUserTenant();
+      allow write: if isAdmin() &&
+                      request.resource.data.tenantId == getUserTenant();
+    }
+
+    // Scores: Teachers can create/update their own scores
+    match /scores/{scoreId} {
+      allow read: if request.auth != null &&
+                     resource.data.tenantId == getUserTenant();
+      allow create: if isTeacher() &&
+                       request.resource.data.tenantId == getUserTenant() &&
+                       request.resource.data.teacherId == request.auth.uid;
+      allow update: if isTeacher() &&
+                       resource.data.tenantId == getUserTenant() &&
+                       resource.data.teacherId == request.auth.uid;
+      allow delete: if isAdmin() &&
+                       resource.data.tenantId == getUserTenant();
+    }
+
+    // Results: Read-only for most users, write for admins
+    match /results/{resultId} {
+      allow read: if request.auth != null &&
+                     resource.data.tenantId == getUserTenant();
+      allow write: if isAdmin() &&
+                      request.resource.data.tenantId == getUserTenant();
+    }
+
+    // Audit Logs: Anyone can create (log their actions), only admins can read
+    match /auditLogs/{logId} {
+      allow read: if isAdmin() &&
+                     resource.data.tenantId == getUserTenant();
+      allow create: if request.auth != null &&
+                       request.resource.data.tenantId == getUserTenant() &&
+                       request.resource.data.userId == request.auth.uid;
+    }
+
+    // Default: Deny all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
