@@ -10,7 +10,7 @@ export default function Home() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
             <div className="flex items-center">
-              <h1 className="text-2xl font-bold text-blue-600">SchoolPortal</h1>
+              <h1 className="text-2xl font-bold text-blue-600">SETH</h1>
             </div>
             <div className="flex items-center gap-4">
               <Link href="/login">
@@ -111,7 +111,7 @@ export default function Home() {
       <footer className="border-t bg-gray-50">
         <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
           <p className="text-center text-sm text-gray-600">
-            © 2025 SchoolPortal. Built with Next.js and Firebase.
+            © 2025 SETH SchoolPortal. Built with Next.js and Firebase.
           </p>
         </div>
       </footer>
