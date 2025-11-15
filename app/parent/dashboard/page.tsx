@@ -202,7 +202,7 @@ export default function ParentDashboard() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Family Dashboard</h1>
           <p className="text-gray-600 mt-1">
-            {guardianInfo ? `Welcome, ${guardianInfo.name}` : 'View your children's academic progress'}
+            {guardianInfo ? `Welcome, ${guardianInfo.name}` : "View your children's academic progress"}
           </p>
         </div>
         {children.length > 1 && (
