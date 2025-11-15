@@ -1,5 +1,6 @@
 {
   "projects": {
-    "default": "school-portal-demo"
+    "default": "school-portal-demo",
+    "production": "seth-production-26d19"
   }
 }
