@@ -76,6 +76,17 @@ interface PredictionData {
   recommendations: string[];
 }
 
+interface Score {
+  subjectId: string;
+  studentId: string;
+  classId: string;
+  termId: string;
+  percentage?: number;
+  grade?: string;
+  isPublished: boolean;
+  tenantId: string;
+}
+
 export default function StudentAnalyticsPage() {
   const router = useRouter();
   const { user } = useAuth();
@@ -164,10 +175,10 @@ export default function StudentAnalyticsPage() {
         where('isPublished', '==', true)
       );
       const scoresSnapshot = await getDocs(scoresQuery);
-      const scores = scoresSnapshot.docs.map(doc => ({
+      const scores: Score[] = scoresSnapshot.docs.map(doc => ({
         ...doc.data(),
         termId: doc.data().termId,
-      }));
+      } as Score));
 
       // Load subjects
       const subjectsQuery = query(

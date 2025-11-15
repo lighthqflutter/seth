@@ -90,6 +90,17 @@ interface SubjectDifficulty {
   failRate: number;
 }
 
+interface Score {
+  id: string;
+  subjectId: string;
+  studentId: string;
+  classId: string;
+  percentage?: number;
+  termId: string;
+  isPublished: boolean;
+  tenantId: string;
+}
+
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
 export default function AcademicAnalyticsPage() {
@@ -153,10 +164,10 @@ export default function AcademicAnalyticsPage() {
           where('isPublished', '==', true)
         );
         const scoresSnapshot = await getDocs(scoresQuery);
-        const scores = scoresSnapshot.docs.map(doc => ({
+        const scores: Score[] = scoresSnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
-        }));
+        } as Score));
 
         // Load subjects
         const subjectsQuery = query(
@@ -203,8 +214,9 @@ export default function AcademicAnalyticsPage() {
           if (!subjectStats[score.subjectId]) {
             subjectStats[score.subjectId] = { scores: [], passed: 0 };
           }
-          subjectStats[score.subjectId].scores.push(score.percentage || 0);
-          if (score.percentage >= 40) {
+          const percentage = score.percentage || 0;
+          subjectStats[score.subjectId].scores.push(percentage);
+          if (percentage >= 40) {
             subjectStats[score.subjectId].passed++;
           }
         });

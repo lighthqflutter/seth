@@ -456,7 +456,7 @@ export type AuditAction =
 
 export type AuditEntityType =
   | 'student' | 'score' | 'result' | 'class' | 'subject' | 'term' | 'teacher'
-  | 'user' | 'guardian' | 'tenant' | 'settings';
+  | 'user' | 'guardian' | 'tenant' | 'settings' | 'attendance';
 
 export interface AuditLog {
   id: string;

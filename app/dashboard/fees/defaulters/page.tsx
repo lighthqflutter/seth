@@ -121,8 +121,8 @@ export default function DefaultersPage() {
       });
 
       // Build defaulters list
-      const defaultersList: Defaulter[] = Array.from(defaultersMap.entries())
-        .map(([studentId, data]) => {
+      const defaultersList = Array.from(defaultersMap.entries())
+        .map(([studentId, data]): Defaulter | null => {
           const student = studentsMap.get(studentId);
           if (!student) return null;
 

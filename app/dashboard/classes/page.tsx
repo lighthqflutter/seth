@@ -7,7 +7,7 @@ import { db } from '@/lib/firebase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { parseClassesCSV, exportToCSV } from '@/lib/csvImport';
+import { parseClassesCSV, exportToCSV, downloadCSV } from '@/lib/csvImport';
 import { generateAndDownloadTemplate, scanEntityStructure, generateDynamicCSVTemplate } from '@/lib/dynamicCSV';
 
 interface Class {

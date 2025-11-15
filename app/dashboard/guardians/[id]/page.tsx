@@ -270,18 +270,23 @@ export default function EditGuardianPage() {
 
       // Log audit trail
       await logAudit({
-        tenantId: user.tenantId,
-        userId: user.uid,
+        user: {
+          uid: user.uid,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          tenantId: user.tenantId,
+        },
         action: 'update',
         entityType: 'guardian',
         entityId: guardianId,
-        changes: {
-          ...formData,
+        entityName: formData.name,
+        before: {},
+        after: formData,
+        metadata: {
           linkedStudents: selectedStudents,
           removedStudents,
           addedStudents,
-        },
-        metadata: {
           guardianName: formData.name,
           guardianEmail: formData.email,
           studentCount: selectedStudents.length,

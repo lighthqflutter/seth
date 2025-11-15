@@ -16,7 +16,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { collection, query, where, getDocs, addDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, serverTimestamp, writeBatch, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { logAudit } from '@/lib/auditLog';
@@ -208,9 +208,10 @@ export default function NewGuardianPage() {
       // Update students' guardianIds arrays
       const batch = writeBatch(db);
       selectedStudents.forEach(studentId => {
-        const studentRef = collection(db, 'students').doc(studentId);
+        const studentRef = doc(db, 'students', studentId);
+        const student: any = students.find(s => s.id === studentId);
         batch.update(studentRef, {
-          guardianIds: [...(students.find(s => s.id === studentId)?.guardianIds || []), guardianId],
+          guardianIds: [...(student?.guardianIds || []), guardianId],
           updatedAt: serverTimestamp(),
         });
       });
@@ -219,16 +220,20 @@ export default function NewGuardianPage() {
 
       // Log audit trail
       await logAudit({
-        tenantId: user.tenantId,
-        userId: user.uid,
+        user: {
+          uid: user.uid,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          tenantId: user.tenantId,
+        },
         action: 'create',
         entityType: 'guardian',
         entityId: guardianId,
-        changes: {
-          ...formData,
-          linkedStudents: selectedStudents,
-        },
+        entityName: formData.name,
+        after: formData,
         metadata: {
+          linkedStudents: selectedStudents,
           guardianName: formData.name,
           guardianEmail: formData.email,
           studentCount: selectedStudents.length,

@@ -235,7 +235,7 @@ export default function FeeStructurePage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this fee item?')) return;
+    if (!user || !confirm('Are you sure you want to delete this fee item?')) return;
 
     try {
       await updateDoc(doc(db, 'feeStructureItems', id), {

@@ -506,7 +506,7 @@ export default function FeesReportsPage() {
                       nameKey="method"
                       cx="50%"
                       cy="50%"
-                      label={(entry) => getPaymentMethodName(entry.method)}
+                      label={(entry) => getPaymentMethodName(entry.method || 'cash')}
                     >
                       {report.byPaymentMethod.map((entry, index) => (
                         <Cell

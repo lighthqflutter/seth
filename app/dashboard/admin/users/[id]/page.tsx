@@ -117,10 +117,10 @@ export default function UserDetailPage() {
       await logAudit({
         user: {
           uid: user.uid,
-          name: user.displayName || user.email || 'Unknown',
-          email: user.email || '',
-          role: userDetail.role, // Use userDetail for role and tenantId
-          tenantId: userDetail.tenantId,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          tenantId: user.tenantId,
         },
         action: 'change_role',
         entityType: 'user',
@@ -144,10 +144,10 @@ export default function UserDetailPage() {
         await logAudit({
           user: {
             uid: user.uid,
-            name: user.displayName || user.email || 'Unknown',
-            email: user.email || '',
-            role: userDetail.role,
-            tenantId: userDetail.tenantId,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            tenantId: user.tenantId,
           },
           action: 'change_role',
           entityType: 'user',
@@ -185,10 +185,10 @@ export default function UserDetailPage() {
       await logAudit({
         user: {
           uid: user.uid,
-          name: user.displayName || user.email || 'Unknown',
-          email: user.email || '',
-          role: userDetail.role,
-          tenantId: userDetail.tenantId,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          tenantId: user.tenantId,
         },
         action: userDetail.isActive ? 'deactivate_user' : 'activate_user',
         entityType: 'user',
@@ -209,10 +209,10 @@ export default function UserDetailPage() {
         await logAudit({
           user: {
             uid: user.uid,
-            name: user.displayName || user.email || 'Unknown',
-            email: user.email || '',
-            role: userDetail.role,
-            tenantId: userDetail.tenantId,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            tenantId: user.tenantId,
           },
           action: userDetail.isActive ? 'deactivate_user' : 'activate_user',
           entityType: 'user',

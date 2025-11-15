@@ -155,7 +155,7 @@ export default function AttendanceDashboard() {
           let todayStats;
           if (markedToday) {
             const present = classTodayAttendance.filter(a =>
-              ATTENDANCE_STATUS_CONFIG[a.status].countsAsPresent
+              ATTENDANCE_STATUS_CONFIG[a.status as keyof typeof ATTENDANCE_STATUS_CONFIG]?.countsAsPresent
             ).length;
             const absent = classTodayAttendance.filter(a => a.status === 'absent').length;
             const late = classTodayAttendance.filter(a => a.status === 'late').length;
@@ -166,7 +166,7 @@ export default function AttendanceDashboard() {
 
           const classWeekAttendance = weekAttendance.filter(a => a.classId === cls.id);
           const weekPresent = classWeekAttendance.filter(a =>
-            ATTENDANCE_STATUS_CONFIG[a.status].countsAsPresent
+            ATTENDANCE_STATUS_CONFIG[a.status as keyof typeof ATTENDANCE_STATUS_CONFIG]?.countsAsPresent
           ).length;
           const weeklyAttendanceRate = classWeekAttendance.length > 0
             ? (weekPresent / classWeekAttendance.length) * 100
@@ -190,7 +190,7 @@ export default function AttendanceDashboard() {
         const totalClasses = classesData.length;
 
         const todayPresent = todayAttendance.filter(a =>
-          ATTENDANCE_STATUS_CONFIG[a.status].countsAsPresent
+          ATTENDANCE_STATUS_CONFIG[a.status as keyof typeof ATTENDANCE_STATUS_CONFIG].countsAsPresent
         ).length;
         const averageAttendanceRate = todayAttendance.length > 0
           ? (todayPresent / todayAttendance.length) * 100

@@ -270,12 +270,18 @@ export default function MarkAttendancePage() {
 
       // Log audit
       await logAudit({
-        tenantId: user.tenantId,
-        userId: user.uid,
+        user: {
+          uid: user.uid,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          tenantId: user.tenantId,
+        },
         action: existingAttendance.size > 0 ? 'update' : 'create',
         entityType: 'attendance',
         entityId: `${selectedClassId}-${selectedDate}`,
-        changes: {
+        entityName: classes.find(c => c.id === selectedClassId)?.name,
+        metadata: {
           classId: selectedClassId,
           date: selectedDate,
           period,
@@ -283,10 +289,6 @@ export default function MarkAttendancePage() {
           presentCount: Array.from(attendance.values()).filter(
             a => ATTENDANCE_STATUS_CONFIG[a.status].countsAsPresent
           ).length,
-        },
-        metadata: {
-          className: classes.find(c => c.id === selectedClassId)?.name,
-          date: selectedDate,
         },
       });
 

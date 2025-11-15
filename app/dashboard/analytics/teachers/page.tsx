@@ -69,6 +69,18 @@ interface WorkloadData {
   subjects: number;
 }
 
+interface Score {
+  teacherId?: string;
+  subjectId?: string;
+  studentId?: string;
+  classId?: string;
+  termId?: string;
+  percentage?: number;
+  grade?: string;
+  isPublished?: boolean;
+  tenantId?: string;
+}
+
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
 export default function TeacherAnalyticsPage() {
@@ -181,10 +193,10 @@ export default function TeacherAnalyticsPage() {
           where('termId', '==', selectedTerm)
         );
         const scoresSnapshot = await getDocs(scoresQuery);
-        const scores = scoresSnapshot.docs.map(doc => ({
+        const scores: Score[] = scoresSnapshot.docs.map(doc => ({
           ...doc.data(),
           teacherId: subjects.get(doc.data().subjectId)?.teacherId,
-        }));
+        } as Score));
 
         // Calculate teacher performance
         const teacherPerfData: TeacherPerformance[] = teachers.map(teacher => {

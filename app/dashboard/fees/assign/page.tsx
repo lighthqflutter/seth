@@ -268,8 +268,8 @@ export default function AssignFeesPage() {
           dueDate: Timestamp.fromDate(dueDate),
           isOverdue: overdueStatus,
           allowInstallments: false,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
+          createdAt: serverTimestamp() as any,
+          updatedAt: serverTimestamp() as any,
           assignedBy: user.uid,
         };
 

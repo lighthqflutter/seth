@@ -235,10 +235,10 @@ export default function RecordPaymentPage() {
         receiptNumber,
         notes: paymentData.notes,
         recordedBy: user.uid,
-        recordedAt: serverTimestamp(),
+        recordedAt: serverTimestamp() as any,
         isRefunded: false,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+        createdAt: serverTimestamp() as any,
+        updatedAt: serverTimestamp() as any,
         transactionReference: paymentData.transactionReference || undefined,
         bankName: paymentData.bankName || undefined,
         accountNumber: paymentData.accountNumber || undefined,
@@ -264,14 +264,14 @@ export default function RecordPaymentPage() {
         amountPaid: newAmountPaid,
         amountOutstanding: newAmountOutstanding,
         status: newStatus,
-        updatedAt: serverTimestamp(),
+        updatedAt: serverTimestamp() as any,
       });
 
       // Update next receipt number
       if (configDoc.exists()) {
         await updateDoc(doc(db, 'feeConfigurations', user.tenantId), {
           nextReceiptNumber: nextReceiptNumber + 1,
-          updatedAt: serverTimestamp(),
+          updatedAt: serverTimestamp() as any,
         });
       }
 
