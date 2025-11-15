@@ -40,6 +40,14 @@ service cloud.firestore {
                                resource.data.tenantId == getUserTenant();
     }
 
+    // Teachers: Tenant-scoped access
+    match /teachers/{teacherId} {
+      allow read: if request.auth != null &&
+                     resource.data.tenantId == getUserTenant();
+      allow create, update, delete: if isAdmin() &&
+                                       request.resource.data.tenantId == getUserTenant();
+    }
+
     // Classes: Tenant-scoped
     match /classes/{classId} {
       allow read: if request.auth != null &&
