@@ -20,11 +20,19 @@ if (typeof window === 'undefined' && getApps().length === 0) {
     console.log('🔥 Firebase Admin connected to emulators');
   } else if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
     // Production: Use service account if available
-    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+    try {
+      const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
 
-    adminApp = initializeApp({
-      credential: cert(serviceAccount),
-    });
+      adminApp = initializeApp({
+        credential: cert(serviceAccount),
+      });
+
+      console.log('✅ Firebase Admin initialized successfully');
+    } catch (error) {
+      console.error('❌ Failed to parse Firebase service account key:', error);
+      console.warn('⚠️ Firebase Admin not initialized due to JSON parsing error');
+      // Don't throw - allow build to continue
+    }
   } else {
     // Build time: Initialize with minimal config (will throw at runtime if used)
     console.warn('⚠️ Firebase Admin not initialized - service account key not provided');
