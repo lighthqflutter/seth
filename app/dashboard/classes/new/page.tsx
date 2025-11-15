@@ -95,6 +95,10 @@ export default function NewClassPage() {
       }
     }
 
+    if (!formData.teacherId) {
+      newErrors.teacherId = 'Class teacher is required';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -110,20 +114,16 @@ export default function NewClassPage() {
     setSaving(true);
 
     try {
-      const classData: any = {
+      const classData = {
         name: formData.name.trim(),
         level: formData.level.trim(),
         academicYear: formData.academicYear.trim(),
+        teacherId: formData.teacherId, // Required field
         studentCount: 0,
         tenantId: user?.tenantId,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
-
-      // Only add teacherId if one is selected
-      if (formData.teacherId) {
-        classData.teacherId = formData.teacherId;
-      }
 
       await addDoc(collection(db, 'classes'), classData);
       router.push('/dashboard/classes');
@@ -202,15 +202,15 @@ export default function NewClassPage() {
               )}
             </div>
 
-            {/* Class Teacher (Optional) */}
+            {/* Class Teacher (Required) */}
             <div>
               <label htmlFor="teacherId" className="block text-sm font-medium text-gray-700 mb-2">
-                Class Teacher (Optional)
+                Class Teacher *
               </label>
               {loadingTeachers ? (
                 <div className="text-sm text-gray-500">Loading teachers...</div>
               ) : teachers.length === 0 ? (
-                <div className="text-sm text-gray-600 bg-gray-50 p-4 rounded-lg">
+                <div className="text-sm text-gray-600 bg-gray-50 p-4 rounded-lg border border-gray-300">
                   <p>No teachers available. Create a teacher first.</p>
                   <Button
                     type="button"
@@ -223,19 +223,26 @@ export default function NewClassPage() {
                   </Button>
                 </div>
               ) : (
-                <select
-                  id="teacherId"
-                  value={formData.teacherId}
-                  onChange={(e) => setFormData({ ...formData, teacherId: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">No teacher assigned</option>
-                  {teachers.map((teacher) => (
-                    <option key={teacher.id} value={teacher.id}>
-                      {teacher.name} ({teacher.email})
-                    </option>
-                  ))}
-                </select>
+                <>
+                  <select
+                    id="teacherId"
+                    value={formData.teacherId}
+                    onChange={(e) => setFormData({ ...formData, teacherId: e.target.value })}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.teacherId ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  >
+                    <option value="">Select a teacher...</option>
+                    {teachers.map((teacher) => (
+                      <option key={teacher.id} value={teacher.id}>
+                        {teacher.name} ({teacher.email})
+                      </option>
+                    ))}
+                  </select>
+                  {errors.teacherId && (
+                    <p className="mt-1 text-sm text-red-600">{errors.teacherId}</p>
+                  )}
+                </>
               )}
             </div>
 
