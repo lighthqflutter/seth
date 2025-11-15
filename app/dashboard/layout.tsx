@@ -53,10 +53,18 @@ export default function DashboardLayout({
     { name: 'Dashboard', href: '/dashboard', icon: '🏠' },
     { name: 'Students', href: '/dashboard/students', icon: '👥' },
     { name: 'Teachers', href: '/dashboard/teachers', icon: '👨‍🏫', roles: ['admin'] },
+    { name: 'Guardians', href: '/dashboard/guardians', icon: '👨‍👩‍👧‍👦', roles: ['admin', 'teacher'] },
     { name: 'Classes', href: '/dashboard/classes', icon: '📚', roles: ['admin', 'teacher'] },
     { name: 'Subjects', href: '/dashboard/subjects', icon: '📖', roles: ['admin'] },
+    { name: 'Terms', href: '/dashboard/terms', icon: '📅', roles: ['admin'] },
     { name: 'Scores', href: '/dashboard/scores', icon: '📝', roles: ['admin', 'teacher'] },
+    { name: 'Skills', href: '/dashboard/skills/entry', icon: '⭐', roles: ['admin', 'teacher'] },
     { name: 'Results', href: '/dashboard/results', icon: '📊' },
+    { name: 'Attendance', href: '/dashboard/attendance', icon: '✅', roles: ['admin', 'teacher'] },
+    { name: 'Fees', href: '/dashboard/fees', icon: '💰', roles: ['admin'] },
+    { name: 'Analytics', href: '/dashboard/analytics', icon: '📈', roles: ['admin'] },
+    { name: 'Users', href: '/dashboard/admin/users', icon: '👤', roles: ['admin'] },
+    { name: 'Audit Logs', href: '/dashboard/audit', icon: '📋', roles: ['admin'] },
     { name: 'Settings', href: '/dashboard/settings/email-preferences', icon: '⚙️', roles: ['admin'] },
   ];
 
