@@ -64,16 +64,20 @@ export default function NewTeacherPage() {
     setSaving(true);
 
     try {
-      const teacherData = {
+      const teacherData: any = {
         name: formData.name.trim(),
         email: formData.email.trim(),
-        phone: formData.phone.trim() || undefined,
         role: 'teacher',
         isActive: true,
         tenantId: user?.tenantId,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
+
+      // Only add phone if it's provided
+      if (formData.phone.trim()) {
+        teacherData.phone = formData.phone.trim();
+      }
 
       await addDoc(collection(db, 'users'), teacherData);
       router.push('/dashboard/teachers');

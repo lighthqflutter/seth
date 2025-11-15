@@ -26,7 +26,7 @@ service cloud.firestore {
     // Users: Can read/update own profile, admins can create teachers
     match /users/{userId} {
       allow read: if request.auth.uid == userId ||
-                     (request.auth != null && get(/databases/$(database)/documents/users/$(userId)).data.tenantId == getUserTenant());
+                     (request.auth != null && resource.data.tenantId == getUserTenant());
       allow update: if request.auth.uid == userId;
       allow create: if isAdmin() && request.resource.data.tenantId == getUserTenant();
       allow delete: if false; // Only via admin SDK
