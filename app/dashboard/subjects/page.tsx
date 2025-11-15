@@ -7,7 +7,7 @@ import { db } from '@/lib/firebase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { parseSubjectsCSV, exportToCSV } from '@/lib/csvImport';
+import { parseSubjectsCSV, exportToCSV, downloadCSV } from '@/lib/csvImport';
 import { generateAndDownloadTemplate } from '@/lib/dynamicCSV';
 
 interface Subject {

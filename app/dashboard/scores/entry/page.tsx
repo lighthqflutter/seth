@@ -237,7 +237,7 @@ export default function ScoreEntryPage() {
             classId,
             subjectId,
             termId,
-            studentCount: Object.keys(studentScores).length,
+            studentCount: scores.size,
             isDraft,
             timestamp: new Date().toISOString(),
           },

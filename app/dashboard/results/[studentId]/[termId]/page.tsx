@@ -207,10 +207,14 @@ export default function StudentResultPage() {
 
           const attendanceSnapshot = await getDocs(attendanceQuery);
           const attendanceRecords = attendanceSnapshot.docs
-            .map(doc => ({
-              ...doc.data(),
-              date: doc.data().date.toDate ? doc.data().date.toDate() : new Date(doc.data().date),
-            }))
+            .map(doc => {
+              const data = doc.data();
+              return {
+                ...data,
+                date: data.date.toDate ? data.date.toDate() : new Date(data.date),
+                status: data.status as string,
+              };
+            })
             .filter(record =>
               record.date >= termStartDate && record.date <= termEndDate
             );

@@ -556,7 +556,7 @@ export const ReportCardPDF: React.FC<ReportCardPDFProps> = ({ data }) => {
           {scores.map((score, index) => (
             <View
               key={index}
-              style={[styles.tableRow, index % 2 === 1 && styles.tableRowAlt]}
+              style={index % 2 === 1 ? [styles.tableRow, styles.tableRowAlt] : styles.tableRow}
             >
               <Text style={[styles.tableCell, styles.col1]}>{index + 1}</Text>
               <Text style={[styles.tableCell, styles.col2, styles.tableCellLeft]}>

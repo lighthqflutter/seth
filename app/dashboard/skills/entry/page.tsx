@@ -272,7 +272,7 @@ export default function SkillsEntryPage() {
           tenantId: user.tenantId,
         },
         action: 'create',
-        entityType: 'skillRatings',
+        entityType: 'result',
         entityId: `class-${selectedClassId}-term-${selectedTermId}`,
         entityName: `Skills for ${classes.find(c => c.id === selectedClassId)?.name} - ${terms.find(t => t.id === selectedTermId)?.name}`,
         metadata: {
@@ -280,6 +280,7 @@ export default function SkillsEntryPage() {
           termId: selectedTermId,
           studentCount: students.length,
           ratingsUpdated: updateCount,
+          type: 'skillRatings',
         },
       });
 

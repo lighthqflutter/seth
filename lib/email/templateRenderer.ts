@@ -23,7 +23,7 @@ import { AnnouncementEmail, AnnouncementEmailProps } from './templates/Announcem
 export async function renderTemplate(
   template: React.ReactElement
 ): Promise<{ html: string; text: string }> {
-  const html = render(template);
+  const html = await render(template);
 
   // Generate plain text version (simple HTML stripping)
   const text = html

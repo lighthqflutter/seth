@@ -8,7 +8,15 @@
  */
 
 import { logAudit } from './auditLogger';
-import { User, Student } from '@/types';
+import { Student } from '@/types';
+
+interface User {
+  uid: string;
+  name: string;
+  email: string;
+  role: 'admin' | 'teacher' | 'parent';
+  tenantId: string;
+}
 
 // ===========================================
 // EXAMPLE 1: CREATE Operation

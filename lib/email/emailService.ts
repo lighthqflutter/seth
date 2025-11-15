@@ -117,7 +117,7 @@ async function sendViaBrevo(options: SendEmailOptions): Promise<SendEmailResult>
 
     return {
       success: true,
-      messageId: response.messageId,
+      messageId: response.body?.messageId || String(response.response?.statusCode || 'sent'),
       provider: 'brevo',
       timestamp: new Date(),
     };
@@ -151,7 +151,7 @@ async function sendViaResend(options: SendEmailOptions): Promise<SendEmailResult
       subject: options.subject,
       html: options.html,
       text: options.text,
-      reply_to: options.replyTo || config.replyToEmail,
+      replyTo: options.replyTo || config.replyToEmail,
       attachments: options.attachments?.map(att => ({
         filename: att.filename,
         content: Buffer.isBuffer(att.content)
@@ -162,7 +162,7 @@ async function sendViaResend(options: SendEmailOptions): Promise<SendEmailResult
 
     return {
       success: true,
-      messageId: response.id,
+      messageId: response.data?.id || 'sent',
       provider: 'resend',
       timestamp: new Date(),
     };

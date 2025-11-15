@@ -96,12 +96,16 @@ export default function EmailPreferencesPage() {
 
       // Log audit
       await logAudit({
-        tenantId: user.tenantId,
-        userId: user.uid,
+        user: {
+          uid: user.uid,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          tenantId: user.tenantId,
+        },
         action: 'update',
-        entityType: 'emailPreferences',
+        entityType: 'settings',
         entityId: user.uid,
-        changes: preferences,
         metadata: {
           enabled: preferences.enabled,
           categoriesEnabled: Object.values(preferences.categories).filter(Boolean).length,

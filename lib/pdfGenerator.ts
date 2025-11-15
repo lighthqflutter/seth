@@ -97,10 +97,14 @@ export async function generateReportCardPDF(options: GeneratePDFOptions): Promis
 
   const attendanceSnapshot = await getDocs(attendanceQuery);
   const attendanceRecords = attendanceSnapshot.docs
-    .map(doc => ({
-      ...doc.data(),
-      date: doc.data().date.toDate ? doc.data().date.toDate() : new Date(doc.data().date),
-    }))
+    .map(doc => {
+      const data = doc.data();
+      return {
+        ...data,
+        date: data.date.toDate ? data.date.toDate() : new Date(data.date),
+        status: data.status as string,
+      };
+    })
     .filter(record =>
       record.date >= termStartDate && record.date <= termEndDate
     );
@@ -128,6 +132,7 @@ export async function generateReportCardPDF(options: GeneratePDFOptions): Promis
 
   // Prepare scores with subject names
   const scores = scoresData.map(score => ({
+    subjectId: score.subjectId,
     subjectName: subjects.get(score.subjectId)?.name || 'Unknown Subject',
     total: score.total,
     percentage: score.percentage,
@@ -195,7 +200,7 @@ export async function generateReportCardPDF(options: GeneratePDFOptions): Promis
   const ReportCardElement = ReportCardPDF({ data: reportCardData });
 
   // Generate PDF blob
-  const blob = await pdf(ReportCardElement).toBlob();
+  const blob = await pdf(ReportCardElement as any).toBlob();
   return blob;
 }
 
