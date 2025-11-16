@@ -58,18 +58,33 @@ export default function FeesPage() {
       );
       const termsSnapshot = await getDocs(termsQuery);
 
+      console.log('All terms:', termsSnapshot.docs.map(d => ({
+        id: d.id,
+        name: d.data().name,
+        isActive: d.data().isActive,
+        isCurrent: d.data().isCurrent
+      })));
+
       // Find active or current term
-      const term = termsSnapshot.docs.find(doc => {
+      let term = termsSnapshot.docs.find(doc => {
         const data = doc.data();
         return data.isActive === true || data.isCurrent === true;
       });
 
+      // If no active term found, use the most recent one
+      if (!term && termsSnapshot.docs.length > 0) {
+        console.warn('No active term found, using first term');
+        term = termsSnapshot.docs[0];
+      }
+
       if (!term) {
+        console.error('No terms found at all');
         setLoading(false);
         return;
       }
 
       const termData = { id: term.id, name: term.data().name };
+      console.log('Selected term for dashboard:', termData);
       setCurrentTerm(termData);
 
       // Load all students (filter isActive in-memory for backward compatibility)
