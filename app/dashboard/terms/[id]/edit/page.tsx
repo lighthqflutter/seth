@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { doc, getDoc, updateDoc, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, Timestamp, collection, query, where, getDocs, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -139,11 +139,39 @@ export default function EditTermPage() {
       // Filter out empty holidays
       const validHolidays = holidays.filter(h => h.name && h.startDate && h.endDate);
 
+      // If setting this term as active, deactivate all other terms
+      if (formData.isActive) {
+        // Get current user's tenant ID from the term document
+        const currentTermDoc = await getDoc(doc(db, 'terms', termId));
+        const tenantId = currentTermDoc.data()?.tenantId;
+
+        if (tenantId) {
+          const termsQuery = query(
+            collection(db, 'terms'),
+            where('tenantId', '==', tenantId)
+          );
+          const termsSnapshot = await getDocs(termsQuery);
+
+          const batch = writeBatch(db);
+          termsSnapshot.docs.forEach((termDoc) => {
+            if (termDoc.id !== termId) {
+              batch.update(termDoc.ref, {
+                isActive: false,
+                isCurrent: false
+              });
+            }
+          });
+          await batch.commit();
+        }
+      }
+
+      // Update this term
       await updateDoc(doc(db, 'terms', termId), {
         name: formData.name.trim(),
         startDate: Timestamp.fromDate(new Date(formData.startDate)),
         endDate: Timestamp.fromDate(new Date(formData.endDate)),
         isActive: formData.isActive,
+        isCurrent: formData.isActive, // Also set isCurrent for backward compatibility
         academicYear: formData.academicYear.trim(),
         holidays: validHolidays.map(h => ({
           name: h.name.trim(),
@@ -155,6 +183,7 @@ export default function EditTermPage() {
       });
       router.push('/dashboard/terms');
     } catch (error) {
+      console.error('Error updating term:', error);
       setSaveError('Failed to update term. Please try again.');
       setSaving(false);
     }
