@@ -8,6 +8,7 @@ import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firesto
 import { db } from '@/lib/firebase/client';
 import { calculateTermResult, determineOverallGrade, generatePerformanceRemark } from './resultCalculation';
 import { getSchoolBranding, SchoolBranding } from './schoolBranding';
+import { getTemplateForClass } from './reportCardTemplates/templateAssignment';
 
 interface GeneratePDFOptions {
   studentId: string;
@@ -130,10 +131,14 @@ export async function generateReportCardPDF(options: GeneratePDFOptions): Promis
     attendanceRate,
   };
 
-  // Prepare scores with subject names
+  // Prepare scores with subject names and CA breakdown
   const scores = scoresData.map(score => ({
     subjectId: score.subjectId,
     subjectName: subjects.get(score.subjectId)?.name || 'Unknown Subject',
+    ca1: score.ca1 || 0,
+    ca2: score.ca2 || 0,
+    ca3: score.ca3 || 0,
+    exam: score.exam || 0,
     total: score.total,
     percentage: score.percentage,
     grade: score.grade,
@@ -195,13 +200,23 @@ export async function generateReportCardPDF(options: GeneratePDFOptions): Promis
     principalComment,
   };
 
-  // Dynamically import the PDF component to avoid SSR issues
-  const { ReportCardPDF } = await import('@/components/pdf/ReportCardPDF');
-  const ReportCardElement = ReportCardPDF({ data: reportCardData });
+  // Load template for this class
+  const template = await getTemplateForClass(classData.id, tenantId);
 
-  // Generate PDF blob
-  const blob = await pdf(ReportCardElement as any).toBlob();
-  return blob;
+  // Dynamically import the appropriate PDF component
+  if (template) {
+    // Use dynamic template renderer
+    const { DynamicReportCardPDF } = await import('@/components/pdf/DynamicReportCardPDF');
+    const pdfElement = DynamicReportCardPDF({ data: reportCardData, template });
+    const blob = await pdf(pdfElement as any).toBlob();
+    return blob;
+  } else {
+    // Fallback to legacy static template
+    const { ReportCardPDF } = await import('@/components/pdf/ReportCardPDF');
+    const pdfElement = ReportCardPDF({ data: reportCardData });
+    const blob = await pdf(pdfElement as any).toBlob();
+    return blob;
+  }
 }
 
 /**
