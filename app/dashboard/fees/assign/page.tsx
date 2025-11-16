@@ -103,17 +103,18 @@ export default function AssignFeesPage() {
         setSelectedTerm(activeTerm?.id || termsData[0].id);
       }
 
-      // Load classes
+      // Load classes (without isActive filter for backward compatibility)
       const classesQuery = query(
         collection(db, 'classes'),
-        where('tenantId', '==', user.tenantId),
-        where('isActive', '==', true)
+        where('tenantId', '==', user.tenantId)
       );
       const classesSnapshot = await getDocs(classesQuery);
       const classesMap = new Map<string, string>();
-      classesSnapshot.docs.forEach((doc) => {
-        classesMap.set(doc.id, doc.data().name);
-      });
+      classesSnapshot.docs
+        .filter(doc => doc.data().isActive !== false) // Filter in-memory
+        .forEach((doc) => {
+          classesMap.set(doc.id, doc.data().name);
+        });
       setClasses(classesMap);
     } catch (error) {
       console.error('Error loading initial data:', error);
@@ -147,26 +148,29 @@ export default function AssignFeesPage() {
     if (!user?.tenantId) return;
 
     try {
-      let studentsQuery = query(
-        collection(db, 'students'),
-        where('tenantId', '==', user.tenantId),
-        where('isActive', '==', true)
-      );
+      let studentsQuery;
 
       if (selectedClass !== 'all') {
         studentsQuery = query(
           collection(db, 'students'),
           where('tenantId', '==', user.tenantId),
-          where('isActive', '==', true),
           where('currentClassId', '==', selectedClass)
+        );
+      } else {
+        studentsQuery = query(
+          collection(db, 'students'),
+          where('tenantId', '==', user.tenantId)
         );
       }
 
       const studentsSnapshot = await getDocs(studentsQuery);
-      const studentsData = studentsSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      // Filter active students in-memory for backward compatibility
+      const studentsData = studentsSnapshot.docs
+        .filter(doc => doc.data().isActive !== false)
+        .map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
       setStudents(studentsData);
     } catch (error) {
       console.error('Error loading students:', error);
@@ -382,7 +386,7 @@ export default function AssignFeesPage() {
               </SelectTrigger>
               <SelectContent>
                 {feeItems.length === 0 ? (
-                  <SelectItem value="" disabled>
+                  <SelectItem value="none" disabled>
                     No fee items available for this term
                   </SelectItem>
                 ) : (
