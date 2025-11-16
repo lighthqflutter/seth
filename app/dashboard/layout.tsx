@@ -59,6 +59,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
     { name: 'Scores', href: '/dashboard/scores', icon: '📝', roles: ['admin', 'teacher'] },
     { name: 'Skills', href: '/dashboard/skills/entry', icon: '⭐', roles: ['admin', 'teacher'] },
     { name: 'Results', href: '/dashboard/results', icon: '📊' },
+    { name: 'Report Cards', href: '/dashboard/settings/report-cards', icon: '📄', roles: ['admin'] },
     { name: 'Attendance', href: '/dashboard/attendance', icon: '✅', roles: ['admin', 'teacher'] },
     { name: 'Fees', href: '/dashboard/fees', icon: '💰', roles: ['admin'] },
     { name: 'Analytics', href: '/dashboard/analytics', icon: '📈', roles: ['admin'] },
