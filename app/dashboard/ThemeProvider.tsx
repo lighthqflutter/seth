@@ -1,13 +1,34 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { useAuth } from '@/hooks/useAuth';
 
+interface ThemeContextType {
+  logoUrl: string;
+  schoolName: string;
+  primaryColor: string;
+  secondaryColor: string;
+}
+
+const ThemeContext = createContext<ThemeContextType>({
+  logoUrl: '',
+  schoolName: '',
+  primaryColor: '#2563eb',
+  secondaryColor: '#1e40af',
+});
+
+export const useTheme = () => useContext(ThemeContext);
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  const [themeLoaded, setThemeLoaded] = useState(false);
+  const [themeData, setThemeData] = useState<ThemeContextType>({
+    logoUrl: '',
+    schoolName: '',
+    primaryColor: '#2563eb',
+    secondaryColor: '#1e40af',
+  });
 
   useEffect(() => {
     const loadTheme = async () => {
@@ -19,6 +40,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
           const data = tenantDoc.data();
           const primaryColor = data.primaryColor || '#2563eb';
           const secondaryColor = data.secondaryColor || '#1e40af';
+          const logoUrl = data.logoUrl || '';
+          const schoolName = data.name || '';
+
+          // Update context
+          setThemeData({
+            logoUrl,
+            schoolName,
+            primaryColor,
+            secondaryColor,
+          });
 
           // Apply CSS variables to root
           document.documentElement.style.setProperty('--color-primary', primaryColor);
@@ -38,19 +69,20 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
             const secondaryHover = `rgb(${Math.min(secondary.r + 25, 255)}, ${Math.min(secondary.g + 25, 255)}, ${Math.min(secondary.b + 25, 255)})`;
             document.documentElement.style.setProperty('--color-secondary-hover', secondaryHover);
           }
-
-          setThemeLoaded(true);
         }
       } catch (error) {
         console.error('Error loading theme:', error);
-        setThemeLoaded(true);
       }
     };
 
     loadTheme();
   }, [user?.tenantId]);
 
-  return <>{children}</>;
+  return (
+    <ThemeContext.Provider value={themeData}>
+      {children}
+    </ThemeContext.Provider>
+  );
 }
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } | null {

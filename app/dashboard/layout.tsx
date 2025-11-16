@@ -7,17 +7,14 @@ import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { ThemeProvider } from './ThemeProvider';
+import { ThemeProvider, useTheme } from './ThemeProvider';
 import './theme.css';
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+function DashboardContent({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, loading } = useAuth();
+  const { logoUrl, schoolName } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Redirect to login if not authenticated
@@ -84,7 +81,7 @@ export default function DashboardLayout({
           {/* Logo and User Role (Desktop) */}
           <div className="hidden md:flex items-center gap-3">
             <Link href="/dashboard" className="text-xl font-bold text-blue-600">
-              SETH SchoolPortal
+              {schoolName || 'SETH SchoolPortal'}
             </Link>
             <span className="text-sm text-gray-500">
               {user.role?.charAt(0).toUpperCase() + user.role?.slice(1)}
@@ -92,14 +89,34 @@ export default function DashboardLayout({
           </div>
 
           {/* Mobile Logo */}
-          <div className="md:hidden flex items-center">
+          <div className="md:hidden flex items-center gap-2">
+            {logoUrl && (
+              <img
+                src={logoUrl}
+                alt={schoolName || 'School Logo'}
+                className="h-8 w-auto object-contain"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+            )}
             <Link href="/dashboard" className="text-xl font-bold text-blue-600">
-              SETH SchoolPortal
+              {schoolName || 'SETH SchoolPortal'}
             </Link>
           </div>
 
           {/* Desktop Navigation - Aligned to Right */}
           <div className="hidden md:flex items-center gap-4 ml-auto">
+            {logoUrl && (
+              <img
+                src={logoUrl}
+                alt={schoolName || 'School Logo'}
+                className="h-10 w-auto object-contain"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+            )}
             <span className="text-sm text-gray-600">{user.email}</span>
             <Button variant="outline" size="sm" onClick={handleLogout}>
               Logout
