@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { addDoc, collection } from 'firebase/firestore';
+import { addDoc, collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -14,12 +14,20 @@ interface FormData {
   code: string;
   maxScore: string;
   description: string;
+  classIds: string[];
 }
 
 interface FormErrors {
   name?: string;
   code?: string;
   maxScore?: string;
+  classIds?: string;
+}
+
+interface ClassOption {
+  id: string;
+  name: string;
+  level: string;
 }
 
 export default function NewSubjectPage() {
@@ -30,10 +38,40 @@ export default function NewSubjectPage() {
     code: '',
     maxScore: '',
     description: '',
+    classIds: [],
   });
+  const [classes, setClasses] = useState<ClassOption[]>([]);
+  const [loadingClasses, setLoadingClasses] = useState(true);
   const [errors, setErrors] = useState<FormErrors>({});
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadClasses = async () => {
+      if (!user?.tenantId) return;
+
+      try {
+        const classesQuery = query(
+          collection(db, 'classes'),
+          where('tenantId', '==', user.tenantId),
+          orderBy('name')
+        );
+        const snapshot = await getDocs(classesQuery);
+        const classOptions = snapshot.docs.map(doc => ({
+          id: doc.id,
+          name: doc.data().name,
+          level: doc.data().level,
+        }));
+        setClasses(classOptions);
+      } catch (error) {
+        console.error('Error loading classes:', error);
+      } finally {
+        setLoadingClasses(false);
+      }
+    };
+
+    loadClasses();
+  }, [user?.tenantId]);
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -60,8 +98,21 @@ export default function NewSubjectPage() {
       }
     }
 
+    if (formData.classIds.length === 0) {
+      newErrors.classIds = 'Please select at least one class';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const handleClassToggle = (classId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      classIds: prev.classIds.includes(classId)
+        ? prev.classIds.filter(id => id !== classId)
+        : [...prev.classIds, classId]
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -75,15 +126,20 @@ export default function NewSubjectPage() {
     setSaving(true);
 
     try {
-      const subjectData = {
+      const subjectData: any = {
         name: formData.name.trim(),
         code: formData.code.trim(),
         maxScore: parseInt(formData.maxScore, 10),
-        description: formData.description.trim() || undefined,
+        classIds: formData.classIds,
         tenantId: user?.tenantId,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
+
+      // Only add description if provided
+      if (formData.description.trim()) {
+        subjectData.description = formData.description.trim();
+      }
 
       await addDoc(collection(db, 'subjects'), subjectData);
       router.push('/dashboard/subjects');
@@ -157,6 +213,70 @@ export default function NewSubjectPage() {
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder="Brief description"
               />
+            </div>
+
+            {/* Classes Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Classes Taking This Subject *
+              </label>
+              {loadingClasses ? (
+                <div className="text-sm text-gray-500">Loading classes...</div>
+              ) : classes.length === 0 ? (
+                <div className="text-sm text-gray-600 bg-gray-50 p-4 rounded-lg border border-gray-300">
+                  <p>No classes available. Create a class first.</p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="mt-3"
+                    onClick={() => router.push('/dashboard/classes/new')}
+                  >
+                    Add Class
+                  </Button>
+                </div>
+              ) : (
+                <div className={`border rounded-lg p-4 space-y-2 ${errors.classIds ? 'border-red-500' : 'border-gray-300'}`}>
+                  <div className="flex items-center gap-2 mb-3 pb-2 border-b">
+                    <input
+                      type="checkbox"
+                      id="select-all"
+                      checked={formData.classIds.length === classes.length}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setFormData({ ...formData, classIds: classes.map(c => c.id) });
+                        } else {
+                          setFormData({ ...formData, classIds: [] });
+                        }
+                      }}
+                      className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <label htmlFor="select-all" className="text-sm font-medium text-gray-700">
+                      Select All Classes
+                    </label>
+                  </div>
+                  {classes.map((cls) => (
+                    <div key={cls.id} className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id={`class-${cls.id}`}
+                        checked={formData.classIds.includes(cls.id)}
+                        onChange={() => handleClassToggle(cls.id)}
+                        className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      <label htmlFor={`class-${cls.id}`} className="text-sm text-gray-700 cursor-pointer flex-1">
+                        {cls.name} ({cls.level})
+                      </label>
+                    </div>
+                  ))}
+                  {formData.classIds.length > 0 && (
+                    <div className="mt-3 pt-2 border-t text-sm text-gray-600">
+                      {formData.classIds.length} {formData.classIds.length === 1 ? 'class' : 'classes'} selected
+                    </div>
+                  )}
+                </div>
+              )}
+              {errors.classIds && <p className="mt-1 text-sm text-red-600">{errors.classIds}</p>}
             </div>
 
             {saveError && (
