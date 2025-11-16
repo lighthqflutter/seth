@@ -28,6 +28,18 @@ interface StudentScore {
   errors?: string[];
 }
 
+interface ScoreConfiguration {
+  id: string;
+  tenantId: string;
+  name: string;
+  description?: string;
+  isDefault: boolean;
+  isActive: boolean;
+  assessmentConfig: AssessmentConfig;
+  createdAt: any;
+  updatedAt: any;
+}
+
 export default function ScoreEntryPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -41,7 +53,7 @@ export default function ScoreEntryPage() {
   const [scores, setScores] = useState<Map<string, StudentScore>>(new Map());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [configurations, setConfigurations] = useState<any[]>([]);
+  const [configurations, setConfigurations] = useState<ScoreConfiguration[]>([]);
   const [selectedConfigId, setSelectedConfigId] = useState<string>('');
   const [loadingConfigs, setLoadingConfigs] = useState(true);
 
