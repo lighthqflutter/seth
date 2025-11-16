@@ -188,29 +188,39 @@ export default function FeeStructurePage() {
     try {
       setSaving(true);
 
-      const feeData = {
+      const feeData: any = {
         tenantId: user.tenantId,
         feeType: formData.feeType,
-        customName: formData.feeType === 'other' ? formData.customName : undefined,
         description: formData.description,
         amount,
         isMandatory: formData.isMandatory,
-        classId: formData.classId || undefined,
         termId: selectedTerm,
         dueDate: Timestamp.fromDate(new Date(formData.dueDate)),
-        latePenaltyPercentage: formData.latePenaltyPercentage
-          ? parseFloat(formData.latePenaltyPercentage)
-          : undefined,
-        earlyDiscountPercentage: formData.earlyDiscountPercentage
-          ? parseFloat(formData.earlyDiscountPercentage)
-          : undefined,
-        earlyDiscountDeadline: formData.earlyDiscountDeadline
-          ? Timestamp.fromDate(new Date(formData.earlyDiscountDeadline))
-          : undefined,
         isActive: true,
         updatedAt: serverTimestamp(),
         updatedBy: user.uid,
       };
+
+      // Only add optional fields if they have values
+      if (formData.feeType === 'other' && formData.customName) {
+        feeData.customName = formData.customName;
+      }
+
+      if (formData.classId) {
+        feeData.classId = formData.classId;
+      }
+
+      if (formData.latePenaltyPercentage) {
+        feeData.latePenaltyPercentage = parseFloat(formData.latePenaltyPercentage);
+      }
+
+      if (formData.earlyDiscountPercentage) {
+        feeData.earlyDiscountPercentage = parseFloat(formData.earlyDiscountPercentage);
+      }
+
+      if (formData.earlyDiscountDeadline) {
+        feeData.earlyDiscountDeadline = Timestamp.fromDate(new Date(formData.earlyDiscountDeadline));
+      }
 
       if (editingId) {
         // Update existing
