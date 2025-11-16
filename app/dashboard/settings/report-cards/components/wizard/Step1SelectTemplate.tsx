@@ -55,7 +55,7 @@ export default function Step1SelectTemplate({ templateConfig, updateConfig, onNe
 
       {/* Template Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {TEMPLATE_PREVIEWS.map((preview) => (
+        {Object.values(TEMPLATE_PREVIEWS).filter(p => p.type !== 'custom').map((preview) => (
           <Card
             key={preview.type}
             className={`cursor-pointer transition-all border-2 ${
@@ -116,12 +116,12 @@ export default function Step1SelectTemplate({ templateConfig, updateConfig, onNe
                   </ul>
                 </div>
 
-                {/* Sections Count */}
+                {/* Template Type Badge */}
                 <div className="pt-3 border-t border-gray-200">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">Sections:</span>
-                    <span className="font-medium text-gray-900">
-                      {preview.sections.length} included
+                    <span className="text-gray-600">Type:</span>
+                    <span className="font-medium text-gray-900 capitalize">
+                      {preview.type}
                     </span>
                   </div>
                 </div>
