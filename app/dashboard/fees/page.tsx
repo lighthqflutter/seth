@@ -50,14 +50,18 @@ export default function FeesPage() {
     try {
       setLoading(true);
 
-      // Load current term
+      // Load current term (check both isActive and isCurrent for backward compatibility)
       const termsQuery = query(
         collection(db, 'terms'),
-        where('tenantId', '==', user.tenantId),
-        where('isActive', '==', true)
+        where('tenantId', '==', user.tenantId)
       );
       const termsSnapshot = await getDocs(termsQuery);
-      const term = termsSnapshot.docs[0];
+
+      // Find active or current term
+      const term = termsSnapshot.docs.find(doc => {
+        const data = doc.data();
+        return data.isActive === true || data.isCurrent === true;
+      });
 
       if (!term) {
         setLoading(false);
