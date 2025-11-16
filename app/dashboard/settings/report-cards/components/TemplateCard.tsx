@@ -187,15 +187,24 @@ export default function TemplateCard({ template, onUpdate }: TemplateCardProps) 
             <Button
               variant="outline"
               size="sm"
+              onClick={() => router.push(`/dashboard/settings/report-cards/assign/${template.id}`)}
+              disabled={loading}
+              className="text-xs"
+            >
+              Assign
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handleClone}
               disabled={loading}
               className="text-xs"
             >
               Clone
             </Button>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
             {!template.isDefault && (
               <Button
                 variant="outline"
