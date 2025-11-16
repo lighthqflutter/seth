@@ -179,12 +179,12 @@ export default function LoginPage() {
           </CardContent>
         </Card>
 
-        {/* Sign Up Link */}
+        {/* Contact Link */}
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-600">
             Don't have a school account?{' '}
-            <Link href="/register" className="text-blue-600 font-medium hover:underline">
-              Register your school
+            <Link href="/contact" className="text-blue-600 font-medium hover:underline">
+              Contact us to get started
             </Link>
           </p>
         </div>
