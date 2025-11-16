@@ -182,8 +182,8 @@ export default function Step3Branding({
                   </div>
                   {[
                     { key: 'header' as const, label: 'Header Background' },
-                    { key: 'text' as const, label: 'Header Text' },
-                    { key: 'accent' as const, label: 'Accent Color' },
+                    { key: 'borders' as const, label: 'Borders' },
+                    { key: 'grades' as const, label: 'Grades & Accents' },
                   ].map((item) => (
                     <div key={item.key}>
                       <label className="block text-xs text-gray-600 mb-1">{item.label}</label>
