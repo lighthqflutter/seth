@@ -3,22 +3,79 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { getTemplate } from '@/lib/reportCardTemplates/templateCRUD';
-import { getAllPresets } from '@/lib/reportCardTemplates/presets';
-import { ReportCardTemplate } from '@/types/reportCardTemplate';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { getTemplate, createTemplate, updateTemplate } from '@/lib/reportCardTemplates/templateCRUD';
+import { CreateTemplateInput, ReportCardTemplate } from '@/types/reportCardTemplate';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+
+// Import wizard steps
+import Step1SelectTemplate from '../../components/wizard/Step1SelectTemplate';
+import Step2ConfigureSections from '../../components/wizard/Step2ConfigureSections';
+import Step3Branding from '../../components/wizard/Step3Branding';
+import Step4Layout from '../../components/wizard/Step4Layout';
+import Step5Preview from '../../components/wizard/Step5Preview';
+
+type WizardStep = 1 | 2 | 3 | 4 | 5;
 
 export default function TemplateBuilderPage() {
   const params = useParams();
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
-  const [template, setTemplate] = useState<ReportCardTemplate | null>(null);
-  const [loading, setLoading] = useState(true);
+
+  const [currentStep, setCurrentStep] = useState<WizardStep>(1);
   const [isNewTemplate, setIsNewTemplate] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  // Template configuration state
+  const [templateConfig, setTemplateConfig] = useState<Partial<CreateTemplateInput>>({
+    layout: {
+      mode: 'preset',
+      pageSize: 'A4',
+      orientation: 'portrait',
+      margins: { top: 20, right: 20, bottom: 20, left: 20 },
+      sections: [],
+    },
+    branding: {
+      logoPosition: 'left',
+      showLogo: true,
+      showSchoolName: true,
+      showMotto: true,
+      showAddress: true,
+      headerStyle: 'classic',
+      colorScheme: 'primary',
+    },
+    scoresTable: {
+      columns: ['Subject', 'CA1', 'CA2', 'CA3', 'Exam', 'Total', 'Grade', 'Remark'],
+      showCABreakdown: true,
+      showPercentage: true,
+      showGrade: true,
+      showRemark: true,
+      showPosition: true,
+      remarkType: 'auto',
+    },
+    comments: {
+      showTeacherComment: true,
+      showPrincipalComment: true,
+      maxLength: 500,
+      showSignature: true,
+    },
+    attendance: {
+      enabled: true,
+      showDaysPresent: true,
+      showDaysAbsent: true,
+      showAttendanceRate: true,
+    },
+    skills: {
+      enabled: true,
+      displayStyle: 'table',
+      showDescriptions: false,
+    },
+  });
 
   const templateId = params.templateId as string;
 
+  // Load template if editing
   useEffect(() => {
     const loadTemplate = async () => {
       if (!user?.tenantId) return;
@@ -27,14 +84,13 @@ export default function TemplateBuilderPage() {
         setLoading(true);
 
         if (templateId === 'new') {
-          // Creating new template
           setIsNewTemplate(true);
-          setTemplate(null);
         } else {
-          // Editing existing template
           const templateData = await getTemplate(templateId);
-          setTemplate(templateData);
-          setIsNewTemplate(false);
+          if (templateData) {
+            setTemplateConfig(templateData);
+            setIsNewTemplate(false);
+          }
         }
       } catch (error) {
         console.error('Error loading template:', error);
@@ -48,17 +104,78 @@ export default function TemplateBuilderPage() {
     }
   }, [templateId, user?.tenantId, authLoading]);
 
+  // Update template configuration
+  const updateConfig = (updates: Partial<CreateTemplateInput>) => {
+    setTemplateConfig(prev => ({
+      ...prev,
+      ...updates,
+    }));
+  };
+
+  // Navigate between steps
+  const goToStep = (step: WizardStep) => {
+    setCurrentStep(step);
+  };
+
+  const nextStep = () => {
+    if (currentStep < 5) {
+      setCurrentStep((currentStep + 1) as WizardStep);
+    }
+  };
+
+  const previousStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep((currentStep - 1) as WizardStep);
+    }
+  };
+
+  // Save template
+  const handleSave = async (name: string, description: string, setAsDefault: boolean) => {
+    if (!user?.tenantId || !user?.uid) return;
+
+    setSaving(true);
+    try {
+      const templateData: CreateTemplateInput = {
+        ...templateConfig as CreateTemplateInput,
+        tenantId: user.tenantId,
+        name,
+        description,
+        isDefault: setAsDefault,
+        isActive: true,
+        assignedToClasses: [],
+        assignedToLevels: [],
+        createdBy: user.uid,
+      };
+
+      let result;
+      if (isNewTemplate) {
+        result = await createTemplate(templateData);
+      } else {
+        result = await updateTemplate(templateId, templateData);
+      }
+
+      if (result.success) {
+        router.push('/dashboard/settings/report-cards');
+      } else {
+        alert(`Error: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Save error:', error);
+      alert('Failed to save template');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // Check authorization
   if (!authLoading && (!user || user.role !== 'admin')) {
     return (
       <div className="p-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Access Denied</CardTitle>
-            <CardDescription>
-              Only administrators can create or edit report card templates.
-            </CardDescription>
-          </CardHeader>
+        <Card className="p-6">
+          <h2 className="text-xl font-bold mb-2">Access Denied</h2>
+          <p className="text-gray-600">
+            Only administrators can create or edit report card templates.
+          </p>
         </Card>
       </div>
     );
@@ -70,7 +187,7 @@ export default function TemplateBuilderPage() {
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading template builder...</p>
+            <p className="text-gray-600">Loading...</p>
           </div>
         </div>
       </div>
@@ -80,138 +197,108 @@ export default function TemplateBuilderPage() {
   return (
     <div className="p-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              {isNewTemplate ? 'Create New Template' : 'Edit Template'}
+            <h1 className="text-3xl font-bold text-gray-900">
+              {isNewTemplate ? 'Create Report Card Template' : 'Edit Template'}
             </h1>
-            <p className="text-gray-600">
+            <p className="text-gray-600 mt-1">
               {isNewTemplate
-                ? 'Choose a preset or build a custom report card template from scratch'
-                : `Editing: ${template?.name || 'Template'}`}
+                ? 'Follow the steps below to create your custom template'
+                : `Editing: ${templateConfig.name || 'Template'}`}
             </p>
           </div>
           <Button
             variant="outline"
             onClick={() => router.push('/dashboard/settings/report-cards')}
           >
-            ← Back to Templates
+            Cancel
           </Button>
+        </div>
+
+        {/* Progress Indicator */}
+        <div className="flex items-center gap-2">
+          {[1, 2, 3, 4, 5].map((step) => (
+            <div key={step} className="flex items-center flex-1">
+              <button
+                onClick={() => goToStep(step as WizardStep)}
+                className={`flex items-center justify-center w-8 h-8 rounded-full font-semibold text-sm transition-colors ${
+                  currentStep === step
+                    ? 'bg-blue-600 text-white'
+                    : currentStep > step
+                    ? 'bg-green-600 text-white'
+                    : 'bg-gray-200 text-gray-600'
+                }`}
+              >
+                {currentStep > step ? '✓' : step}
+              </button>
+              {step < 5 && (
+                <div
+                  className={`flex-1 h-1 mx-2 ${
+                    currentStep > step ? 'bg-green-600' : 'bg-gray-200'
+                  }`}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Step Labels */}
+        <div className="flex gap-2 mt-2">
+          <div className="flex-1 text-center text-xs text-gray-600">Template</div>
+          <div className="flex-1 text-center text-xs text-gray-600">Sections</div>
+          <div className="flex-1 text-center text-xs text-gray-600">Branding</div>
+          <div className="flex-1 text-center text-xs text-gray-600">Layout</div>
+          <div className="flex-1 text-center text-xs text-gray-600">Preview</div>
         </div>
       </div>
 
-      {/* Coming Soon Notice */}
-      <Card className="bg-blue-50 border-blue-200">
-        <CardHeader>
-          <CardTitle className="text-blue-900">🚧 Wizard Under Construction</CardTitle>
-          <CardDescription className="text-blue-800">
-            The 5-step template builder wizard is currently being developed
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <p className="text-blue-900 font-medium">What's coming:</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-white p-4 rounded-lg border border-blue-200">
-                <h3 className="font-semibold text-blue-900 mb-2">Step 1: Choose Template</h3>
-                <p className="text-sm text-blue-800">
-                  Select from 4 professional presets: Classic, Modern, Compact, or Comprehensive
-                </p>
-              </div>
-              <div className="bg-white p-4 rounded-lg border border-blue-200">
-                <h3 className="font-semibold text-blue-900 mb-2">Step 2: Configure Sections</h3>
-                <p className="text-sm text-blue-800">
-                  Enable/disable sections and customize what appears on the report card
-                </p>
-              </div>
-              <div className="bg-white p-4 rounded-lg border border-blue-200">
-                <h3 className="font-semibold text-blue-900 mb-2">Step 3: Branding & Style</h3>
-                <p className="text-sm text-blue-800">
-                  Customize logo position, colors, fonts, and header styles
-                </p>
-              </div>
-              <div className="bg-white p-4 rounded-lg border border-blue-200">
-                <h3 className="font-semibold text-blue-900 mb-2">Step 4: Layout Options</h3>
-                <p className="text-sm text-blue-800">
-                  Use preset layouts or unlock custom drag-and-drop mode
-                </p>
-              </div>
-              <div className="bg-white p-4 rounded-lg border border-blue-200">
-                <h3 className="font-semibold text-blue-900 mb-2">Step 5: Preview & Save</h3>
-                <p className="text-sm text-blue-800">
-                  See live PDF preview and save your custom template
-                </p>
-              </div>
-            </div>
+      {/* Wizard Steps */}
+      <div className="mt-8">
+        {currentStep === 1 && (
+          <Step1SelectTemplate
+            templateConfig={templateConfig}
+            updateConfig={updateConfig}
+            onNext={nextStep}
+          />
+        )}
 
-            {isNewTemplate && (
-              <div className="mt-6 p-4 bg-white rounded-lg border border-blue-200">
-                <h3 className="font-semibold text-blue-900 mb-3">
-                  In the meantime, use the Clone feature:
-                </h3>
-                <ol className="text-sm text-blue-800 space-y-2 list-decimal list-inside">
-                  <li>Go back to the template list</li>
-                  <li>Click "Clone" on any existing template</li>
-                  <li>The cloned template will appear with " (Copy)" in its name</li>
-                  <li>You can then activate/deactivate and assign it to classes</li>
-                </ol>
-              </div>
-            )}
+        {currentStep === 2 && (
+          <Step2ConfigureSections
+            templateConfig={templateConfig}
+            updateConfig={updateConfig}
+            onNext={nextStep}
+            onPrevious={previousStep}
+          />
+        )}
 
-            {!isNewTemplate && template && (
-              <div className="mt-6 p-4 bg-white rounded-lg border border-blue-200">
-                <h3 className="font-semibold text-blue-900 mb-3">Current Template Details:</h3>
-                <div className="space-y-2 text-sm text-blue-800">
-                  <div className="flex justify-between">
-                    <span className="font-medium">Name:</span>
-                    <span>{template.name}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium">Type:</span>
-                    <span className="capitalize">{template.templateType}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium">Layout Mode:</span>
-                    <span className="capitalize">{template.layout.mode}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium">Sections:</span>
-                    <span>{template.layout.sections.filter(s => s.enabled).length} enabled</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium">Status:</span>
-                    <span>{template.isActive ? 'Active' : 'Inactive'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium">Default:</span>
-                    <span>{template.isDefault ? 'Yes' : 'No'}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+        {currentStep === 3 && (
+          <Step3Branding
+            templateConfig={templateConfig}
+            updateConfig={updateConfig}
+            onNext={nextStep}
+            onPrevious={previousStep}
+          />
+        )}
 
-      {/* Quick Actions */}
-      <div className="mt-6 flex gap-3">
-        <Button
-          variant="outline"
-          onClick={() => router.push('/dashboard/settings/report-cards')}
-        >
-          ← Back to Template List
-        </Button>
-        {!isNewTemplate && template && (
-          <Button
-            variant="outline"
-            onClick={() => {
-              // Clone the current template as a workaround
-              router.push('/dashboard/settings/report-cards');
-            }}
-          >
-            Clone This Template Instead
-          </Button>
+        {currentStep === 4 && (
+          <Step4Layout
+            templateConfig={templateConfig}
+            updateConfig={updateConfig}
+            onNext={nextStep}
+            onPrevious={previousStep}
+          />
+        )}
+
+        {currentStep === 5 && (
+          <Step5Preview
+            templateConfig={templateConfig}
+            isNewTemplate={isNewTemplate}
+            onSave={handleSave}
+            onPrevious={previousStep}
+            saving={saving}
+          />
         )}
       </div>
     </div>
