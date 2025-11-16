@@ -236,38 +236,80 @@ export default function Step3Branding({
           <CardContent className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Font Family
+                Header Font
               </label>
               <select
-                value={branding.fontFamily || 'Arial'}
-                onChange={(e) => updateBranding({ fontFamily: e.target.value })}
+                value={branding.fonts?.header || 'Helvetica-Bold'}
+                onChange={(e) =>
+                  updateBranding({
+                    fonts: {
+                      header: e.target.value,
+                      body: branding.fonts?.body || 'Helvetica',
+                      size: branding.fonts?.size || 'medium',
+                    },
+                  })
+                }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="Arial">Arial</option>
-                <option value="Times New Roman">Times New Roman</option>
-                <option value="Helvetica">Helvetica</option>
-                <option value="Georgia">Georgia</option>
-                <option value="Verdana">Verdana</option>
-                <option value="Courier New">Courier New</option>
+                <option value="Helvetica-Bold">Helvetica Bold</option>
+                <option value="Times-Bold">Times Bold</option>
+                <option value="Courier-Bold">Courier Bold</option>
               </select>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Base Font Size
+                Body Font
               </label>
-              <div className="flex items-center gap-4">
-                <input
-                  type="range"
-                  min="10"
-                  max="14"
-                  value={branding.fontSize || 11}
-                  onChange={(e) => updateBranding({ fontSize: parseInt(e.target.value) })}
-                  className="flex-1"
-                />
-                <span className="text-sm font-medium text-gray-900 w-12">
-                  {branding.fontSize || 11}pt
-                </span>
+              <select
+                value={branding.fonts?.body || 'Helvetica'}
+                onChange={(e) =>
+                  updateBranding({
+                    fonts: {
+                      header: branding.fonts?.header || 'Helvetica-Bold',
+                      body: e.target.value,
+                      size: branding.fonts?.size || 'medium',
+                    },
+                  })
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="Helvetica">Helvetica</option>
+                <option value="Times-Roman">Times Roman</option>
+                <option value="Courier">Courier</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Font Size
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { value: 'small' as const, label: 'Small' },
+                  { value: 'medium' as const, label: 'Medium' },
+                  { value: 'large' as const, label: 'Large' },
+                ].map((size) => (
+                  <button
+                    key={size.value}
+                    onClick={() =>
+                      updateBranding({
+                        fonts: {
+                          header: branding.fonts?.header || 'Helvetica-Bold',
+                          body: branding.fonts?.body || 'Helvetica',
+                          size: size.value,
+                        },
+                      })
+                    }
+                    className={`px-4 py-2 rounded-lg border-2 text-sm font-medium transition-colors ${
+                      (branding.fonts?.size || 'medium') === size.value
+                        ? 'border-blue-600 bg-blue-50 text-blue-700'
+                        : 'border-gray-200 text-gray-700 hover:border-blue-300'
+                    }`}
+                  >
+                    {size.label}
+                  </button>
+                ))}
               </div>
             </div>
           </CardContent>

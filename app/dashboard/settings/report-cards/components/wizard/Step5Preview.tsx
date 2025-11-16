@@ -239,15 +239,15 @@ export default function Step5Preview({
                   </div>
                 </div>
                 <div>
-                  <div className="text-gray-600">Font Family</div>
+                  <div className="text-gray-600">Header Font</div>
                   <div className="font-medium text-gray-900 mt-1">
-                    {templateConfig.branding?.fontFamily || 'Arial'}
+                    {templateConfig.branding?.fonts?.header || 'Helvetica-Bold'}
                   </div>
                 </div>
                 <div>
                   <div className="text-gray-600">Font Size</div>
-                  <div className="font-medium text-gray-900 mt-1">
-                    {templateConfig.branding?.fontSize || 11}pt
+                  <div className="font-medium text-gray-900 mt-1 capitalize">
+                    {templateConfig.branding?.fonts?.size || 'Medium'}
                   </div>
                 </div>
               </div>
