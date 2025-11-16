@@ -267,10 +267,14 @@ export interface Tenant {
   primaryColor: string;
   plan: 'free' | 'basic' | 'premium';
   status: 'active' | 'trial' | 'suspended';
-  maxStudents: number;
+  maxStudents: number; // Student quota (pay-per-student)
   maxTeachers: number;
+  currentStudentCount?: number; // Cached count for quick access
+  currentTeacherCount?: number; // Cached count for quick access
   trialEndsAt?: Timestamp;
   subscriptionEndsAt?: Timestamp;
+  lastPaymentDate?: Timestamp; // Track payment history
+  notes?: string; // Super admin notes about this school
   settings: TenantSettings;
   createdAt: Timestamp;
   updatedAt: Timestamp;
@@ -278,10 +282,10 @@ export interface Tenant {
 
 export interface User {
   id: string;
-  tenantId: string;
+  tenantId: string; // 'SUPER_ADMIN' for super admin users
   email: string;
   name: string;
-  role: 'admin' | 'teacher' | 'parent';
+  role: 'superadmin' | 'admin' | 'teacher' | 'parent';
   phone?: string;
   photoUrl?: string;
   isActive: boolean;

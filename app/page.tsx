@@ -14,10 +14,7 @@ export default function Home() {
             </div>
             <div className="flex items-center gap-4">
               <Link href="/login">
-                <Button variant="ghost">Login</Button>
-              </Link>
-              <Link href="/register">
-                <Button>Get Started</Button>
+                <Button>Login</Button>
               </Link>
             </div>
           </div>
@@ -35,12 +32,12 @@ export default function Home() {
           </p>
           <div className="mt-10 flex justify-center gap-4">
             <Link href="/login">
-              <Button size="lg" variant="outline">Login</Button>
-            </Link>
-            <Link href="/register">
-              <Button size="lg">Get Started</Button>
+              <Button size="lg">Login to Your School Portal</Button>
             </Link>
           </div>
+          <p className="mt-6 text-sm text-gray-600">
+            New school? <Link href="/contact" className="text-blue-600 font-medium hover:underline">Contact us to get started →</Link>
+          </p>
         </div>
 
         {/* Features Grid */}

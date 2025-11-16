@@ -1,19 +1,34 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAuth } from '@/hooks/useAuth';
 
 type Step = 1 | 2 | 3 | 4;
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [currentStep, setCurrentStep] = useState<Step>(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Check if user is super admin
+  useEffect(() => {
+    if (!authLoading) {
+      if (!user) {
+        // Not logged in - redirect to login
+        router.push('/login?redirect=/register');
+      } else if (user.role !== 'superadmin') {
+        // Logged in but not super admin - redirect to dashboard
+        router.push('/dashboard');
+      }
+    }
+  }, [user, authLoading, router]);
 
   // Step 1: School Information
   const [schoolName, setSchoolName] = useState('');
@@ -27,9 +42,10 @@ export default function RegisterPage() {
   const [adminPassword, setAdminPassword] = useState('');
   const [adminConfirmPassword, setAdminConfirmPassword] = useState('');
 
-  // Step 3: Subdomain
+  // Step 3: Subdomain & Quota
   const [subdomain, setSubdomain] = useState('');
   const [subdomainAvailable, setSubdomainAvailable] = useState<boolean | null>(null);
+  const [maxStudents, setMaxStudents] = useState(50); // Default quota
 
   const handleStep1Next = (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,6 +108,11 @@ export default function RegisterPage() {
       return;
     }
 
+    if (maxStudents < 1) {
+      setError('Student quota must be at least 1');
+      return;
+    }
+
     handleCreateSchool();
   };
 
@@ -110,6 +131,7 @@ export default function RegisterPage() {
             email: schoolEmail,
             phone: schoolPhone,
             address: schoolAddress,
+            maxStudents, // Set quota
           },
           admin: {
             name: adminName,
@@ -140,15 +162,33 @@ export default function RegisterPage() {
 
   const progressPercentage = (currentStep / 4) * 100;
 
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Only show content if super admin
+  if (!user || user.role !== 'superadmin') {
+    return null; // Will redirect via useEffect
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white p-4 py-8">
       <div className="mx-auto max-w-2xl">
         {/* Header */}
         <div className="text-center mb-8">
-          <Link href="/">
-            <h1 className="text-3xl font-bold text-blue-600 mb-2">SchoolPortal</h1>
-          </Link>
-          <p className="text-gray-600">Create your school account</p>
+          <div className="inline-block px-4 py-2 bg-purple-100 text-purple-700 rounded-full text-sm font-medium mb-4">
+            🔒 Super Admin Only
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Create New School</h1>
+          <p className="text-gray-600">Set up a new school portal with custom subdomain</p>
         </div>
 
         {/* Progress Bar */}
@@ -173,7 +213,7 @@ export default function RegisterPage() {
             <CardHeader>
               <CardTitle>School Information</CardTitle>
               <CardDescription>
-                Tell us about your school
+                Tell us about the school
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -217,7 +257,7 @@ export default function RegisterPage() {
                 />
 
                 <div className="flex gap-4">
-                  <Link href="/" className="flex-1">
+                  <Link href="/dashboard" className="flex-1">
                     <Button type="button" variant="outline" className="w-full">
                       Cancel
                     </Button>
@@ -237,7 +277,7 @@ export default function RegisterPage() {
             <CardHeader>
               <CardTitle>Create Admin Account</CardTitle>
               <CardDescription>
-                Set up your administrator account
+                Set up the school administrator account
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -277,7 +317,7 @@ export default function RegisterPage() {
                 <Input
                   type="password"
                   label="Confirm Password"
-                  placeholder="Re-enter your password"
+                  placeholder="Re-enter password"
                   value={adminConfirmPassword}
                   onChange={(e) => setAdminConfirmPassword(e.target.value)}
                   required
@@ -301,13 +341,13 @@ export default function RegisterPage() {
           </Card>
         )}
 
-        {/* Step 3: Subdomain */}
+        {/* Step 3: Subdomain & Quota */}
         {currentStep === 3 && (
           <Card>
             <CardHeader>
-              <CardTitle>Choose Your School URL</CardTitle>
+              <CardTitle>School URL & Student Quota</CardTitle>
               <CardDescription>
-                This will be your school's unique web address
+                Choose subdomain and set student limit
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -353,10 +393,31 @@ export default function RegisterPage() {
                   )}
                 </div>
 
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Student Quota <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="10000"
+                    value={maxStudents}
+                    onChange={(e) => setMaxStudents(parseInt(e.target.value) || 0)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Maximum number of students this school can onboard
+                  </p>
+                </div>
+
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <p className="text-sm font-medium text-blue-900 mb-2">Your school URL will be:</p>
+                  <p className="text-sm font-medium text-blue-900 mb-2">School URL will be:</p>
                   <p className="text-lg font-semibold text-blue-600">
                     https://{subdomain || 'yourschool'}.seth.ng
+                  </p>
+                  <p className="text-sm text-blue-800 mt-2">
+                    Quota: <strong>{maxStudents}</strong> students
                   </p>
                 </div>
 
@@ -389,64 +450,50 @@ export default function RegisterPage() {
                 </div>
                 <CardTitle className="text-2xl">School Created Successfully!</CardTitle>
                 <CardDescription className="mt-2">
-                  Your school portal is ready to use
+                  The school portal is ready to use
                 </CardDescription>
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-sm font-medium text-blue-900 mb-2">Your school URL:</p>
+                <p className="text-sm font-medium text-blue-900 mb-2">School URL:</p>
                 <p className="text-lg font-semibold text-blue-600 break-all">
                   https://{subdomain}.seth.ng
                 </p>
+                <p className="text-sm text-blue-800 mt-2">
+                  Student Quota: <strong>{maxStudents}</strong>
+                </p>
               </div>
 
-              <div>
-                <p className="font-medium text-gray-900 mb-3">Next Steps:</p>
-                <ul className="space-y-2 text-sm text-gray-600">
-                  <li className="flex items-start gap-2">
-                    <span className="text-blue-600">□</span>
-                    Upload school logo
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-blue-600">□</span>
-                    Add academic terms
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-blue-600">□</span>
-                    Create classes
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-blue-600">□</span>
-                    Add subjects
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-blue-600">□</span>
-                    Invite teachers
-                  </li>
-                </ul>
+              <div className="grid grid-cols-2 gap-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    // Reset form
+                    setCurrentStep(1);
+                    setSchoolName('');
+                    setSchoolEmail('');
+                    setSchoolPhone('');
+                    setSchoolAddress('');
+                    setAdminName('');
+                    setAdminEmail('');
+                    setAdminPassword('');
+                    setAdminConfirmPassword('');
+                    setSubdomain('');
+                    setSubdomainAvailable(null);
+                    setMaxStudents(50);
+                  }}
+                >
+                  Create Another School
+                </Button>
+                <Button
+                  onClick={() => router.push('/dashboard/superadmin/schools')}
+                >
+                  Manage All Schools →
+                </Button>
               </div>
-
-              <Button
-                className="w-full"
-                onClick={() => router.push('/dashboard')}
-              >
-                Go to Dashboard →
-              </Button>
             </CardContent>
           </Card>
-        )}
-
-        {/* Back to Login */}
-        {currentStep < 4 && (
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              Already have an account?{' '}
-              <Link href="/login" className="text-blue-600 font-medium hover:underline">
-                Sign in
-              </Link>
-            </p>
-          </div>
         )}
       </div>
     </div>

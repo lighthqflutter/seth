@@ -27,7 +27,7 @@ interface User {
   uid: string;
   name: string;
   email: string;
-  role: 'admin' | 'teacher' | 'parent';
+  role: 'superadmin' | 'admin' | 'teacher' | 'parent';
   tenantId: string;
 }
 

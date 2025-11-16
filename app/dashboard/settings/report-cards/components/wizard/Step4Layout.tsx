@@ -140,110 +140,48 @@ export default function Step4Layout({
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-3">
-              {/* Preset Mode */}
-              <button
-                onClick={() => updateLayout({ mode: 'preset' })}
-                className={`w-full text-left px-4 py-4 rounded-lg border-2 transition-colors ${
-                  layout.mode === 'preset'
-                    ? 'border-blue-600 bg-blue-50'
-                    : 'border-gray-200 hover:border-blue-300'
-                }`}
-              >
+              {/* Preset Mode (Only option for now) */}
+              <div className="px-4 py-4 rounded-lg border-2 border-blue-600 bg-blue-50">
                 <div className="flex items-start justify-between">
                   <div>
                     <div className="font-semibold text-gray-900">Preset Layout</div>
                     <div className="text-sm text-gray-600 mt-1">
-                      Use the predefined layout from your selected template
+                      Use professionally designed layouts with customizable sections, colors, and fonts
                     </div>
                   </div>
-                  {layout.mode === 'preset' && (
-                    <div className="flex-shrink-0">
-                      <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
-                        <svg
-                          className="w-4 h-4 text-white"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={3}
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </button>
-
-              {/* Custom Mode */}
-              <button
-                onClick={() => updateLayout({ mode: 'custom' })}
-                className={`w-full text-left px-4 py-4 rounded-lg border-2 transition-colors ${
-                  layout.mode === 'custom'
-                    ? 'border-blue-600 bg-blue-50'
-                    : 'border-gray-200 hover:border-blue-300'
-                }`}
-              >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="font-semibold text-gray-900 flex items-center gap-2">
-                      Custom Layout
-                      <span className="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded">
-                        Advanced
-                      </span>
-                    </div>
-                    <div className="text-sm text-gray-600 mt-1">
-                      Build a custom layout with drag-and-drop rows and columns
+                  <div className="flex-shrink-0">
+                    <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
+                      <svg
+                        className="w-4 h-4 text-white"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={3}
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
                     </div>
                   </div>
-                  {layout.mode === 'custom' && (
-                    <div className="flex-shrink-0">
-                      <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
-                        <svg
-                          className="w-4 h-4 text-white"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={3}
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </button>
-            </div>
-
-            {/* Custom Layout Builder (Coming Soon) */}
-            {layout.mode === 'custom' && (
-              <div className="mt-4 p-6 bg-yellow-50 border-2 border-yellow-200 rounded-lg">
-                <div className="text-center">
-                  <div className="text-4xl mb-3">🚧</div>
-                  <div className="font-semibold text-gray-900 mb-2">
-                    Custom Layout Builder
-                  </div>
-                  <div className="text-sm text-gray-600 mb-4">
-                    The drag-and-drop custom layout builder is coming soon. For now, you can use
-                    the preset layout and customize it after creation.
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => updateLayout({ mode: 'preset' })}
-                  >
-                    Switch to Preset Layout
-                  </Button>
                 </div>
               </div>
-            )}
+
+              {/* Custom Layout - Coming Soon Notice */}
+              <div className="px-4 py-3 rounded-lg border-2 border-gray-200 bg-gray-50">
+                <div className="flex items-start gap-3">
+                  <div className="text-xl">🚧</div>
+                  <div className="flex-1">
+                    <div className="font-medium text-gray-700 text-sm">Custom Drag-and-Drop Builder</div>
+                    <div className="text-xs text-gray-600 mt-0.5">
+                      Advanced layout customization coming soon
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
 

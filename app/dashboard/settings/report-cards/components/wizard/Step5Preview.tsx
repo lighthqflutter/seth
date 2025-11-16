@@ -35,12 +35,7 @@ export default function Step5Preview({
       return;
     }
 
-    // Check if custom layout mode is selected (not yet supported)
-    if (templateConfig.layout?.mode === 'custom') {
-      alert('Custom layout mode is not yet available. Please go back to Step 4 and select "Preset Layout".');
-      return;
-    }
-
+    // Custom layout is now supported - no need to block
     await onSave(name.trim(), description.trim(), setAsDefault);
   };
 
@@ -312,55 +307,128 @@ export default function Step5Preview({
             </CardContent>
           </Card>
 
-          {/* Live Preview Placeholder */}
+          {/* Visual Style Preview */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Visual Preview</CardTitle>
+              <CardTitle className="text-lg">Visual Style Preview</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="bg-gray-100 rounded-lg p-8 text-center">
-                <div className="text-4xl mb-3">📄</div>
-                <div className="font-medium text-gray-900 mb-2">PDF Preview Coming Soon</div>
-                <div className="text-sm text-gray-600">
-                  A live PDF preview will be available in a future update. For now, you can create
-                  the template and test it by generating a report card.
+              <div className="border-2 border-gray-300 rounded-lg p-6 bg-white">
+                {/* Header Preview */}
+                <div className={`border-b-2 pb-4 mb-4 ${
+                  templateConfig.branding?.colorScheme === 'primary' ? 'border-blue-600' :
+                  templateConfig.branding?.colorScheme === 'grayscale' ? 'border-gray-600' :
+                  'border-gray-400'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    {templateConfig.branding?.showLogo && (
+                      <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center text-xs text-gray-500">
+                        Logo
+                      </div>
+                    )}
+                    <div className={`flex-1 ${templateConfig.branding?.showLogo ? 'ml-4' : ''}`}>
+                      {templateConfig.branding?.showSchoolName && (
+                        <div className={`font-bold ${
+                          templateConfig.branding?.fonts?.size === 'large' ? 'text-xl' :
+                          templateConfig.branding?.fonts?.size === 'small' ? 'text-sm' :
+                          'text-base'
+                        } ${
+                          templateConfig.branding?.colorScheme === 'primary' ? 'text-blue-800' :
+                          'text-gray-900'
+                        }`}>
+                          School Name Here
+                        </div>
+                      )}
+                      {templateConfig.branding?.showMotto && (
+                        <div className="text-xs text-gray-600 mt-1">School Motto</div>
+                      )}
+                      {templateConfig.branding?.showAddress && (
+                        <div className="text-xs text-gray-500 mt-0.5">School Address</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sample Content */}
+                <div className="space-y-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Student Name:</span>
+                    <span className="font-medium">Sample Student</span>
+                  </div>
+
+                  {/* Sample Scores Table */}
+                  <div className="border border-gray-300 rounded overflow-hidden">
+                    <table className="w-full text-xs">
+                      <thead className={`${
+                        templateConfig.branding?.colorScheme === 'primary' ? 'bg-blue-50' :
+                        'bg-gray-50'
+                      }`}>
+                        <tr>
+                          <th className="p-2 text-left border-b">Subject</th>
+                          {templateConfig.scoresTable?.showCABreakdown && (
+                            <>
+                              <th className="p-2 text-center border-b">CA1</th>
+                              <th className="p-2 text-center border-b">CA2</th>
+                              <th className="p-2 text-center border-b">Exam</th>
+                            </>
+                          )}
+                          <th className="p-2 text-center border-b">Total</th>
+                          {templateConfig.scoresTable?.showGrade && (
+                            <th className="p-2 text-center border-b">Grade</th>
+                          )}
+                          {templateConfig.scoresTable?.showPosition && (
+                            <th className="p-2 text-center border-b">Pos.</th>
+                          )}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr className="border-b">
+                          <td className="p-2">Mathematics</td>
+                          {templateConfig.scoresTable?.showCABreakdown && (
+                            <>
+                              <td className="p-2 text-center">18</td>
+                              <td className="p-2 text-center">17</td>
+                              <td className="p-2 text-center">55</td>
+                            </>
+                          )}
+                          <td className="p-2 text-center font-medium">90</td>
+                          {templateConfig.scoresTable?.showGrade && (
+                            <td className="p-2 text-center">A1</td>
+                          )}
+                          {templateConfig.scoresTable?.showPosition && (
+                            <td className="p-2 text-center">1st</td>
+                          )}
+                        </tr>
+                        <tr>
+                          <td className="p-2">English</td>
+                          {templateConfig.scoresTable?.showCABreakdown && (
+                            <>
+                              <td className="p-2 text-center">19</td>
+                              <td className="p-2 text-center">18</td>
+                              <td className="p-2 text-center">48</td>
+                            </>
+                          )}
+                          <td className="p-2 text-center font-medium">85</td>
+                          {templateConfig.scoresTable?.showGrade && (
+                            <td className="p-2 text-center">A1</td>
+                          )}
+                          {templateConfig.scoresTable?.showPosition && (
+                            <td className="p-2 text-center">2nd</td>
+                          )}
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="text-xs text-gray-500 italic mt-4 text-center">
+                    This is a style preview. Generate a report card to see the full PDF layout.
+                  </div>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
       </div>
-
-      {/* Custom Layout Warning */}
-      {templateConfig.layout?.mode === 'custom' && (
-        <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
-          <div className="flex items-start">
-            <div className="flex-shrink-0">
-              <svg
-                className="h-5 w-5 text-red-600 mt-0.5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-900">
-                Cannot Save: Custom Layout Not Yet Available
-              </h3>
-              <p className="text-sm text-red-700 mt-1">
-                Custom layout mode is coming soon. Please go back to Step 4 and select "Preset Layout" to save your template.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Navigation */}
       <div className="flex justify-between pt-6 border-t border-gray-200">
