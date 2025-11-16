@@ -108,6 +108,7 @@ export default function AttendanceDashboard() {
             startDate: termData.startDate,
             endDate: termData.endDate,
             isActive: termData.isActive,
+            holidays: termData.holidays || [],
           };
           setActiveTerm(currentTerm);
 

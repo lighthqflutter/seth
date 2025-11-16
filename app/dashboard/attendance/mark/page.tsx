@@ -95,9 +95,14 @@ export default function MarkAttendancePage() {
           const termsSnapshot = await getDocs(termsQuery);
 
           if (!termsSnapshot.empty) {
+            const termData = termsSnapshot.docs[0].data();
             const term = {
               id: termsSnapshot.docs[0].id,
-              ...termsSnapshot.docs[0].data(),
+              name: termData.name,
+              startDate: termData.startDate,
+              endDate: termData.endDate,
+              isActive: termData.isActive,
+              holidays: termData.holidays || [],
             };
             setActiveTerm(term);
           }
