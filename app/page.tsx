@@ -34,11 +34,11 @@ export default function Home() {
             Manage students, scores, and results from anywhere. Built for Nigerian schools with mobile-first design.
           </p>
           <div className="mt-10 flex justify-center gap-4">
-            <Link href="/register">
-              <Button size="lg">Start Free Trial</Button>
-            </Link>
             <Link href="/login">
-              <Button size="lg" variant="outline">View Demo</Button>
+              <Button size="lg" variant="outline">Login</Button>
+            </Link>
+            <Link href="/register">
+              <Button size="lg">Get Started</Button>
             </Link>
           </div>
         </div>
@@ -100,7 +100,7 @@ export default function Home() {
               <div className="mb-4 text-4xl">💰</div>
               <CardTitle>Affordable</CardTitle>
               <CardDescription>
-                Starting from ₦60,000/year - much cheaper than legacy solutions
+                Flexible pay as you go termly pricing - much cheaper than legacy solutions
               </CardDescription>
             </CardHeader>
           </Card>
