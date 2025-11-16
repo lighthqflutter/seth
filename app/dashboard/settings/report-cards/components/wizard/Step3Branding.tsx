@@ -194,7 +194,9 @@ export default function Step3Branding({
                           onChange={(e) =>
                             updateBranding({
                               customColors: {
-                                ...branding.customColors,
+                                header: branding.customColors?.header || '#1e3a8a',
+                                borders: branding.customColors?.borders || '#d1d5db',
+                                grades: branding.customColors?.grades || '#10b981',
                                 [item.key]: e.target.value,
                               },
                             })
@@ -207,7 +209,9 @@ export default function Step3Branding({
                           onChange={(e) =>
                             updateBranding({
                               customColors: {
-                                ...branding.customColors,
+                                header: branding.customColors?.header || '#1e3a8a',
+                                borders: branding.customColors?.borders || '#d1d5db',
+                                grades: branding.customColors?.grades || '#10b981',
                                 [item.key]: e.target.value,
                               },
                             })
