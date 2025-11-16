@@ -25,6 +25,11 @@ export default function Step1SelectTemplate({ templateConfig, updateConfig, onNe
     // Get the preset template configuration
     const presetConfig = getPresetByType(type, 'temp-tenant', 'temp-user');
 
+    if (!presetConfig) {
+      console.error('Failed to load preset configuration');
+      return;
+    }
+
     // Update config with preset (excluding tenantId and createdBy which will be set on save)
     const { tenantId, createdBy, ...configToApply } = presetConfig;
     updateConfig(configToApply);
