@@ -45,7 +45,7 @@ ${message}
 Sent from SETH School Portal Contact Form
       `.trim());
 
-      const mailtoLink = `mailto:support@lighthousemultimedia.net?subject=${subject}&body=${body}`;
+      const mailtoLink = `mailto:hello@seth.ng?subject=${subject}&body=${body}`;
 
       // Open mailto link
       window.location.href = mailtoLink;
@@ -88,10 +88,19 @@ Sent from SETH School Portal Contact Form
             </div>
 
             <div className="text-xs text-gray-600 text-center">
-              <p>If your email client didn't open, please email us directly at:</p>
-              <a href="mailto:support@lighthousemultimedia.net" className="text-blue-600 hover:underline font-medium">
-                support@lighthousemultimedia.net
-              </a>
+              <p>If your email client didn't open, please contact us directly:</p>
+              <div className="mt-2 space-y-1">
+                <div>
+                  <a href="mailto:hello@seth.ng" className="text-blue-600 hover:underline font-medium">
+                    hello@seth.ng
+                  </a>
+                </div>
+                <div>
+                  <a href="tel:+2348106940120" className="text-blue-600 hover:underline font-medium">
+                    +234 810 694 0120
+                  </a>
+                </div>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3 pt-4">
@@ -236,12 +245,18 @@ Sent from SETH School Portal Contact Form
 
         {/* Alternative Contact */}
         <div className="mt-6 text-center">
-          <p className="text-sm text-gray-600">
-            Prefer to call or email directly?{' '}
-            <a href="mailto:support@lighthousemultimedia.net" className="text-blue-600 font-medium hover:underline">
-              support@lighthousemultimedia.net
-            </a>
+          <p className="text-sm text-gray-600 mb-2">
+            Prefer to call or email directly?
           </p>
+          <div className="flex items-center justify-center gap-4 text-sm">
+            <a href="mailto:hello@seth.ng" className="text-blue-600 font-medium hover:underline">
+              hello@seth.ng
+            </a>
+            <span className="text-gray-400">|</span>
+            <a href="tel:+2348106940120" className="text-blue-600 font-medium hover:underline">
+              +234 810 694 0120
+            </a>
+          </div>
         </div>
 
         {/* Back to Login */}
