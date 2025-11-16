@@ -101,9 +101,13 @@ export default function AttendanceDashboard() {
         let isWithinTermDates = false;
 
         if (!termsSnapshot.empty) {
+          const termData = termsSnapshot.docs[0].data();
           currentTerm = {
             id: termsSnapshot.docs[0].id,
-            ...termsSnapshot.docs[0].data(),
+            name: termData.name,
+            startDate: termData.startDate,
+            endDate: termData.endDate,
+            isActive: termData.isActive,
           };
           setActiveTerm(currentTerm);
 
@@ -161,15 +165,15 @@ export default function AttendanceDashboard() {
           }));
 
         // Today's attendance
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
         const todayEnd = new Date();
         todayEnd.setHours(23, 59, 59, 999);
 
         const todayAttendanceQuery = query(
           collection(db, 'attendance'),
           where('tenantId', '==', user.tenantId),
-          where('date', '>=', Timestamp.fromDate(today)),
+          where('date', '>=', Timestamp.fromDate(todayStart)),
           where('date', '<=', Timestamp.fromDate(todayEnd))
         );
 
