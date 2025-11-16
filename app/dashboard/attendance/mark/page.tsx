@@ -116,12 +116,33 @@ export default function MarkAttendancePage() {
           }
         }
 
-        const isValid = isWeekday && (isWithinTermDates || !activeTerm);
+        // Check if selected date is a holiday
+        let isHoliday = false;
+        let holidayName = '';
+        if (activeTerm && activeTerm.holidays && Array.isArray(activeTerm.holidays)) {
+          for (const holiday of activeTerm.holidays) {
+            const holidayStart = holiday.startDate?.toDate();
+            const holidayEnd = holiday.endDate?.toDate();
+            if (holidayStart && holidayEnd) {
+              const checkMidnight = new Date(checkDate);
+              checkMidnight.setHours(0, 0, 0, 0);
+              if (checkMidnight >= holidayStart && checkMidnight <= holidayEnd) {
+                isHoliday = true;
+                holidayName = holiday.name;
+                break;
+              }
+            }
+          }
+        }
+
+        const isValid = isWeekday && (isWithinTermDates || !activeTerm) && !isHoliday;
         setIsValidDate(isValid);
 
         if (!isWeekday) {
           const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
           setDateMessage(`${dayNames[dayOfWeek]} is not a school day. Please select Monday through Friday.`);
+        } else if (isHoliday) {
+          setDateMessage(`Selected date is a holiday: ${holidayName}. Attendance cannot be marked on holidays.`);
         } else if (activeTerm && !isWithinTermDates) {
           setDateMessage(`Selected date is outside the active term (${activeTerm.name}: ${activeTerm.startDate?.toDate().toLocaleDateString()} - ${activeTerm.endDate?.toDate().toLocaleDateString()}).`);
         } else if (!activeTerm) {

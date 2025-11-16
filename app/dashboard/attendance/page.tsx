@@ -122,14 +122,35 @@ export default function AttendanceDashboard() {
           }
         }
 
+        // Check if today is a holiday
+        let isHoliday = false;
+        let holidayName = '';
+        if (currentTerm && currentTerm.holidays && Array.isArray(currentTerm.holidays)) {
+          for (const holiday of currentTerm.holidays) {
+            const holidayStart = holiday.startDate?.toDate();
+            const holidayEnd = holiday.endDate?.toDate();
+            if (holidayStart && holidayEnd) {
+              const todayMidnight = new Date(today);
+              todayMidnight.setHours(0, 0, 0, 0);
+              if (todayMidnight >= holidayStart && todayMidnight <= holidayEnd) {
+                isHoliday = true;
+                holidayName = holiday.name;
+                break;
+              }
+            }
+          }
+        }
+
         // Determine if it's a valid school day
-        const isValidSchoolDay = isWeekday && (isWithinTermDates || !currentTerm);
+        const isValidSchoolDay = isWeekday && (isWithinTermDates || !currentTerm) && !isHoliday;
         setIsSchoolDay(isValidSchoolDay);
 
         // Set appropriate message
         if (!isWeekday) {
           const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
           setSchoolDayMessage(`Today is ${dayNames[dayOfWeek]}. Attendance can only be marked Monday through Friday.`);
+        } else if (isHoliday) {
+          setSchoolDayMessage(`Today is a holiday: ${holidayName}. Attendance cannot be marked on holidays.`);
         } else if (currentTerm && !isWithinTermDates) {
           setSchoolDayMessage(`Today is outside the active term dates (${currentTerm.name}: ${currentTerm.startDate?.toDate().toLocaleDateString()} - ${currentTerm.endDate?.toDate().toLocaleDateString()}).`);
         } else if (!currentTerm) {
