@@ -10,6 +10,7 @@ interface ThemeContextType {
   schoolName: string;
   primaryColor: string;
   secondaryColor: string;
+  textColor: string;
 }
 
 const ThemeContext = createContext<ThemeContextType>({
@@ -17,9 +18,34 @@ const ThemeContext = createContext<ThemeContextType>({
   schoolName: '',
   primaryColor: '#2563eb',
   secondaryColor: '#1e40af',
+  textColor: '#ffffff',
 });
 
 export const useTheme = () => useContext(ThemeContext);
+
+// Helper function to determine if a color is light or dark
+function isLightColor(color: string): boolean {
+  const hex = color.replace('#', '');
+  const r = parseInt(hex.substr(0, 2), 16);
+  const g = parseInt(hex.substr(2, 2), 16);
+  const b = parseInt(hex.substr(4, 2), 16);
+
+  // Calculate relative luminance (WCAG formula)
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+
+  // If luminance is greater than 0.5, it's a light color
+  return luminance > 0.5;
+}
+
+// Helper function to darken a color
+function darkenColor(hex: string, amount: number = 30): string {
+  const color = hex.replace('#', '');
+  const r = Math.max(0, parseInt(color.substr(0, 2), 16) - amount);
+  const g = Math.max(0, parseInt(color.substr(2, 2), 16) - amount);
+  const b = Math.max(0, parseInt(color.substr(4, 2), 16) - amount);
+
+  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+}
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -28,6 +54,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     schoolName: '',
     primaryColor: '#2563eb',
     secondaryColor: '#1e40af',
+    textColor: '#ffffff',
   });
 
   useEffect(() => {
@@ -43,24 +70,36 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
           const logoUrl = data.logoUrl || '';
           const schoolName = data.name || '';
 
+          // Determine text color based on primary color lightness
+          const textColor = isLightColor(primaryColor) ? '#000000' : '#ffffff';
+
+          // Generate hover color (darker version of primary)
+          const hoverColor = darkenColor(primaryColor, 30);
+
           // Update context
           setThemeData({
             logoUrl,
             schoolName,
             primaryColor,
             secondaryColor,
+            textColor,
           });
 
-          // Apply CSS variables to root
+          // Apply CSS variables to root for button theming
+          document.documentElement.style.setProperty('--theme-primary', primaryColor);
+          document.documentElement.style.setProperty('--theme-secondary', secondaryColor);
+          document.documentElement.style.setProperty('--theme-text', textColor);
+          document.documentElement.style.setProperty('--theme-hover', hoverColor);
+
+          // Legacy CSS variables (keep for backward compatibility)
           document.documentElement.style.setProperty('--color-primary', primaryColor);
           document.documentElement.style.setProperty('--color-secondary', secondaryColor);
 
-          // Generate lighter/darker shades for hover states
+          // Generate lighter/darker shades for hover states (legacy)
           const primary = hexToRgb(primaryColor);
           const secondary = hexToRgb(secondaryColor);
 
           if (primary) {
-            // Lighter shade for hover (add 10% to each channel)
             const primaryHover = `rgb(${Math.min(primary.r + 25, 255)}, ${Math.min(primary.g + 25, 255)}, ${Math.min(primary.b + 25, 255)})`;
             document.documentElement.style.setProperty('--color-primary-hover', primaryHover);
           }
