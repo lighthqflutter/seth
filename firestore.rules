@@ -17,10 +17,11 @@ service cloud.firestore {
       return request.auth.token.role in ['teacher', 'admin'];
     }
 
-    // Tenants: Only authenticated users can read their own tenant
+    // Tenants: Only authenticated users can read their own tenant, admins can update
     match /tenants/{tenantId} {
       allow read: if request.auth != null && getUserTenant() == tenantId;
-      allow write: if false; // Only via admin SDK
+      allow update: if isAdmin() && getUserTenant() == tenantId;
+      allow create, delete: if false; // Only via admin SDK
     }
 
     // Users: Can read/update own profile, admins can create teachers
@@ -102,6 +103,44 @@ service cloud.firestore {
                      resource.data.tenantId == getUserTenant();
       allow write: if isAdmin() &&
                       request.resource.data.tenantId == getUserTenant();
+    }
+
+    // Attendance: Teachers and admins can manage
+    match /attendance/{attendanceId} {
+      allow read: if request.auth != null &&
+                     resource.data.tenantId == getUserTenant();
+      allow create: if isTeacher() &&
+                       request.resource.data.tenantId == getUserTenant();
+      allow update: if isTeacher() &&
+                       resource.data.tenantId == getUserTenant();
+      allow delete: if isAdmin() &&
+                       resource.data.tenantId == getUserTenant();
+    }
+
+    // Guardians: Tenant-scoped access
+    match /guardians/{guardianId} {
+      allow read: if request.auth != null &&
+                     resource.data.tenantId == getUserTenant();
+      allow create, update, delete: if isAdmin() &&
+                                       request.resource.data.tenantId == getUserTenant();
+    }
+
+    // Fees: Tenant-scoped access
+    match /fees/{feeId} {
+      allow read: if request.auth != null &&
+                     resource.data.tenantId == getUserTenant();
+      allow write: if isAdmin() &&
+                      request.resource.data.tenantId == getUserTenant();
+    }
+
+    // Skills: Teachers and admins can manage
+    match /skills/{skillId} {
+      allow read: if request.auth != null &&
+                     resource.data.tenantId == getUserTenant();
+      allow create, update: if isTeacher() &&
+                               request.resource.data.tenantId == getUserTenant();
+      allow delete: if isAdmin() &&
+                       resource.data.tenantId == getUserTenant();
     }
 
     // Audit Logs: Anyone can create (log their actions), only admins can read
