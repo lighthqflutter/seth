@@ -133,6 +133,26 @@ service cloud.firestore {
                       request.resource.data.tenantId == getUserTenant();
     }
 
+    // Student Fees: Tenant-scoped access (individual student fee records)
+    match /studentFees/{studentFeeId} {
+      allow read: if request.auth != null &&
+                     resource.data.tenantId == getUserTenant();
+      allow create, update: if isAdmin() &&
+                               request.resource.data.tenantId == getUserTenant();
+      allow delete: if isAdmin() &&
+                       resource.data.tenantId == getUserTenant();
+    }
+
+    // Payments: Tenant-scoped access
+    match /payments/{paymentId} {
+      allow read: if request.auth != null &&
+                     resource.data.tenantId == getUserTenant();
+      allow create, update: if isAdmin() &&
+                               request.resource.data.tenantId == getUserTenant();
+      allow delete: if isAdmin() &&
+                       resource.data.tenantId == getUserTenant();
+    }
+
     // Skills: Teachers and admins can manage
     match /skills/{skillId} {
       allow read: if request.auth != null &&
