@@ -1,0 +1,75 @@
+/* Custom theme colors applied via CSS variables */
+:root {
+  --color-primary: #2563eb;
+  --color-secondary: #1e40af;
+  --color-primary-hover: #3b82f6;
+  --color-secondary-hover: #2563eb;
+}
+
+/* Apply primary color to buttons */
+button[class*="bg-blue-600"],
+.bg-blue-600 {
+  background-color: var(--color-primary) !important;
+}
+
+button[class*="bg-blue-600"]:hover,
+.bg-blue-600:hover {
+  background-color: var(--color-primary-hover) !important;
+}
+
+/* Apply to text colors */
+.text-blue-600 {
+  color: var(--color-primary) !important;
+}
+
+.text-blue-700 {
+  color: var(--color-secondary) !important;
+}
+
+/* Apply to borders */
+.border-blue-600 {
+  border-color: var(--color-primary) !important;
+}
+
+.border-blue-500 {
+  border-color: var(--color-primary) !important;
+}
+
+/* Apply to backgrounds */
+.bg-blue-50 {
+  background-color: color-mix(in srgb, var(--color-primary) 10%, white) !important;
+}
+
+.bg-blue-100 {
+  background-color: color-mix(in srgb, var(--color-primary) 20%, white) !important;
+}
+
+/* Apply to focus rings */
+.focus\:ring-blue-500:focus {
+  --tw-ring-color: var(--color-primary) !important;
+}
+
+.focus\:ring-blue-600:focus {
+  --tw-ring-color: var(--color-primary) !important;
+}
+
+/* Apply to active navigation items */
+[class*="bg-blue-50"][class*="text-blue-600"] {
+  background-color: color-mix(in srgb, var(--color-primary) 10%, white) !important;
+  color: var(--color-primary) !important;
+}
+
+/* Apply to links */
+a.text-blue-600 {
+  color: var(--color-primary) !important;
+}
+
+a.text-blue-600:hover {
+  color: var(--color-primary-hover) !important;
+}
+
+/* Apply to brand text */
+.text-blue-600.font-bold,
+.text-blue-600.text-xl {
+  color: var(--color-primary) !important;
+}

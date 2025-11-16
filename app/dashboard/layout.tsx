@@ -7,6 +7,8 @@ import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
+import { ThemeProvider } from './ThemeProvider';
+import './theme.css';
 
 export default function DashboardLayout({
   children,
@@ -74,6 +76,7 @@ export default function DashboardLayout({
   );
 
   return (
+    <ThemeProvider>
     <div className="min-h-screen bg-gray-50">
       {/* Top Navigation (Mobile & Desktop) */}
       <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
@@ -215,5 +218,6 @@ export default function DashboardLayout({
       {/* Spacer for mobile bottom nav */}
       <div className="md:hidden h-20" />
     </div>
+    </ThemeProvider>
   );
 }

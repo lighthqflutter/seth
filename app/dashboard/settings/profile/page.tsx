@@ -215,23 +215,40 @@ export default function SchoolProfilePage() {
               {profile.logoUrl && (
                 <div className="mt-3">
                   <p className="text-sm text-gray-600 mb-2">Logo Preview:</p>
-                  <img
-                    src={profile.logoUrl}
-                    alt="School Logo"
-                    className="h-16 w-auto object-contain border border-gray-200 rounded p-2"
-                    onError={(e) => {
-                      e.currentTarget.src = '';
-                      e.currentTarget.alt = 'Failed to load logo';
-                    }}
-                  />
+                  <div className="border border-gray-200 rounded p-4 bg-gray-50">
+                    <img
+                      src={profile.logoUrl}
+                      alt="School Logo"
+                      className="h-16 w-auto object-contain"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        const errorMsg = e.currentTarget.nextElementSibling as HTMLElement;
+                        if (errorMsg) errorMsg.style.display = 'block';
+                      }}
+                    />
+                    <p className="text-sm text-red-600 mt-2" style={{ display: 'none' }}>
+                      ❌ Failed to load logo. Make sure the URL points to an image file (e.g., https://example.com/logo.png)
+                    </p>
+                  </div>
+                  <p className="mt-2 text-xs text-gray-500">
+                    💡 Tip: The URL must point directly to an image file, not a website homepage.
+                  </p>
                 </div>
               )}
             </div>
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-sm text-blue-800">
+              <p className="text-sm text-blue-800 mb-2">
                 <strong>Note:</strong> Direct file upload is coming soon. For now, upload your logo to an image hosting service and paste the URL above.
               </p>
+              <p className="text-sm text-blue-800">
+                <strong>How to get image URL:</strong>
+              </p>
+              <ul className="text-xs text-blue-700 mt-1 ml-4 list-disc space-y-1">
+                <li>Upload to <a href="https://imgur.com/upload" target="_blank" rel="noopener" className="underline">Imgur</a>, right-click image → Copy Image Address</li>
+                <li>Or upload to <a href="https://cloudinary.com" target="_blank" rel="noopener" className="underline">Cloudinary</a> and copy the image URL</li>
+                <li>URL should end with .png, .jpg, .svg, or .webp</li>
+              </ul>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
