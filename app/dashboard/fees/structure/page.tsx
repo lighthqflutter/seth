@@ -19,6 +19,8 @@ import {
   doc,
   serverTimestamp,
   Timestamp,
+  getDoc,
+  setDoc,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -52,6 +54,9 @@ export default function FeeStructurePage() {
   const [selectedTerm, setSelectedTerm] = useState<string>('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [customFeeTypes, setCustomFeeTypes] = useState<string[]>([]);
+  const [showAddFeeType, setShowAddFeeType] = useState(false);
+  const [newFeeTypeName, setNewFeeTypeName] = useState('');
 
   // Form state
   const [formData, setFormData] = useState({
@@ -77,6 +82,13 @@ export default function FeeStructurePage() {
 
     try {
       setLoading(true);
+
+      // Load custom fee types from tenant config
+      const tenantDoc = await getDoc(doc(db, 'tenants', user.tenantId));
+      if (tenantDoc.exists()) {
+        const tenantData = tenantDoc.data();
+        setCustomFeeTypes(tenantData.customFeeTypes || []);
+      }
 
       // Load terms
       const termsQuery = query(
@@ -260,7 +272,40 @@ export default function FeeStructurePage() {
     }
   };
 
-  const feeTypeOptions: FeeType[] = [
+  const handleAddCustomFeeType = async () => {
+    if (!user?.tenantId || !newFeeTypeName.trim()) {
+      alert('Please enter a fee type name');
+      return;
+    }
+
+    const feeTypeName = newFeeTypeName.trim().toLowerCase().replace(/\s+/g, '_');
+
+    // Check if it already exists
+    if (customFeeTypes.includes(feeTypeName) || baseFeeTypeOptions.includes(feeTypeName as FeeType)) {
+      alert('This fee type already exists');
+      return;
+    }
+
+    try {
+      const updatedCustomTypes = [...customFeeTypes, feeTypeName];
+
+      await setDoc(
+        doc(db, 'tenants', user.tenantId),
+        { customFeeTypes: updatedCustomTypes },
+        { merge: true }
+      );
+
+      setCustomFeeTypes(updatedCustomTypes);
+      setNewFeeTypeName('');
+      setShowAddFeeType(false);
+      alert('Custom fee type added successfully!');
+    } catch (error) {
+      console.error('Error adding custom fee type:', error);
+      alert('Failed to add custom fee type');
+    }
+  };
+
+  const baseFeeTypeOptions: FeeType[] = [
     'tuition',
     'registration',
     'books',
@@ -278,6 +323,8 @@ export default function FeeStructurePage() {
     'technology',
     'other',
   ];
+
+  const allFeeTypeOptions = [...baseFeeTypeOptions, ...customFeeTypes] as FeeType[];
 
   if (loading) {
     return (
@@ -342,23 +389,68 @@ export default function FeeStructurePage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Fee Type *
                 </label>
-                <Select
-                  value={formData.feeType}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, feeType: value as FeeType })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {feeTypeOptions.map((type) => (
-                      <SelectItem key={type} value={type}>
-                        {getFeeTypeName(type)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex gap-2">
+                  <Select
+                    value={formData.feeType}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, feeType: value as FeeType })
+                    }
+                  >
+                    <SelectTrigger className="flex-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {allFeeTypeOptions.map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {getFeeTypeName(type)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowAddFeeType(!showAddFeeType)}
+                    title="Add new fee type"
+                  >
+                    <PlusIcon className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                {/* Add Custom Fee Type */}
+                {showAddFeeType && (
+                  <div className="mt-2 p-3 border border-blue-200 rounded-lg bg-blue-50">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      New Fee Type Name
+                    </label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={newFeeTypeName}
+                        onChange={(e) => setNewFeeTypeName(e.target.value)}
+                        placeholder="e.g., Vocational Studies"
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={handleAddCustomFeeType}
+                      >
+                        Add
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setShowAddFeeType(false);
+                          setNewFeeTypeName('');
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Custom Name (for 'other' type) */}

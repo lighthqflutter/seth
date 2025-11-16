@@ -1,8 +1,8 @@
 'use client';
 
 /**
- * Fee Assignment Page
- * Phase 23: Fee Management System - Assign fees from structure to students
+ * Fee Assignment Page - Enhanced Version
+ * Phase 23: Fee Management System - Flexible fee assignment with checkboxes
  */
 
 import { useEffect, useState } from 'react';
@@ -13,15 +13,15 @@ import {
   query,
   where,
   getDocs,
-  addDoc,
-  serverTimestamp,
-  Timestamp,
   writeBatch,
   doc,
+  serverTimestamp,
+  Timestamp,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -33,9 +33,19 @@ import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
   UserGroupIcon,
+  MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
 import { FeeStructureItem, StudentFee } from '@/types/fees';
-import { formatCurrency, calculateFinalAmount, determinePaymentStatus, isOverdue } from '@/lib/feeHelpers';
+import { formatCurrency, calculateFinalAmount, isOverdue } from '@/lib/feeHelpers';
+
+interface Student {
+  id: string;
+  firstName: string;
+  lastName: string;
+  admissionNumber: string;
+  currentClassId: string;
+  currentClassName?: string;
+}
 
 export default function AssignFeesPage() {
   const { user } = useAuth();
@@ -47,13 +57,11 @@ export default function AssignFeesPage() {
   const [classes, setClasses] = useState<Map<string, string>>(new Map());
   const [selectedClass, setSelectedClass] = useState<string>('all');
   const [feeItems, setFeeItems] = useState<FeeStructureItem[]>([]);
-  const [students, setStudents] = useState<any[]>([]);
-  const [selectedFeeItem, setSelectedFeeItem] = useState<string>('');
-  const [assignmentSummary, setAssignmentSummary] = useState<{
-    total: number;
-    alreadyAssigned: number;
-    willAssign: number;
-  } | null>(null);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [selectedFeeItems, setSelectedFeeItems] = useState<Set<string>>(new Set());
+  const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
 
   useEffect(() => {
     if (!user?.tenantId) return;
@@ -73,12 +81,19 @@ export default function AssignFeesPage() {
   }, [selectedTerm, selectedClass]);
 
   useEffect(() => {
-    if (selectedFeeItem && students.length > 0) {
-      calculateAssignmentSummary();
+    if (searchTerm.trim() === '') {
+      setFilteredStudents(students);
     } else {
-      setAssignmentSummary(null);
+      const term = searchTerm.toLowerCase();
+      const filtered = students.filter(
+        (student) =>
+          student.firstName.toLowerCase().includes(term) ||
+          student.lastName.toLowerCase().includes(term) ||
+          student.admissionNumber.toLowerCase().includes(term)
+      );
+      setFilteredStudents(filtered);
     }
-  }, [selectedFeeItem, students]);
+  }, [searchTerm, students]);
 
   const loadInitialData = async () => {
     if (!user?.tenantId) return;
@@ -99,11 +114,13 @@ export default function AssignFeesPage() {
       setTerms(termsData);
 
       if (termsData.length > 0 && !selectedTerm) {
-        const activeTerm = termsSnapshot.docs.find((doc) => doc.data().isActive);
+        const activeTerm = termsSnapshot.docs.find((doc) =>
+          doc.data().isActive === true || doc.data().isCurrent === true
+        );
         setSelectedTerm(activeTerm?.id || termsData[0].id);
       }
 
-      // Load classes (without isActive filter for backward compatibility)
+      // Load classes
       const classesQuery = query(
         collection(db, 'classes'),
         where('tenantId', '==', user.tenantId)
@@ -111,7 +128,7 @@ export default function AssignFeesPage() {
       const classesSnapshot = await getDocs(classesQuery);
       const classesMap = new Map<string, string>();
       classesSnapshot.docs
-        .filter(doc => doc.data().isActive !== false) // Filter in-memory
+        .filter(doc => doc.data().isActive !== false)
         .forEach((doc) => {
           classesMap.set(doc.id, doc.data().name);
         });
@@ -164,141 +181,171 @@ export default function AssignFeesPage() {
       }
 
       const studentsSnapshot = await getDocs(studentsQuery);
-      // Filter active students in-memory for backward compatibility
       const studentsData = studentsSnapshot.docs
         .filter(doc => doc.data().isActive !== false)
-        .map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
+        .map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            firstName: data.firstName || '',
+            lastName: data.lastName || '',
+            admissionNumber: data.admissionNumber || '',
+            currentClassId: data.currentClassId || '',
+            currentClassName: classes.get(data.currentClassId) || '',
+          };
+        });
       setStudents(studentsData);
+      setFilteredStudents(studentsData);
     } catch (error) {
       console.error('Error loading students:', error);
     }
   };
 
-  const calculateAssignmentSummary = async () => {
-    if (!user?.tenantId || !selectedFeeItem || students.length === 0) return;
+  const toggleFeeItem = (feeId: string) => {
+    const newSelected = new Set(selectedFeeItems);
+    if (newSelected.has(feeId)) {
+      newSelected.delete(feeId);
+    } else {
+      newSelected.add(feeId);
+    }
+    setSelectedFeeItems(newSelected);
+  };
 
-    try {
-      // Check which students already have this fee assigned
-      const existingFeesQuery = query(
-        collection(db, 'studentFees'),
-        where('tenantId', '==', user.tenantId),
-        where('termId', '==', selectedTerm),
-        where('feeStructureItemId', '==', selectedFeeItem)
-      );
-      const existingFeesSnapshot = await getDocs(existingFeesQuery);
-      const assignedStudentIds = new Set(
-        existingFeesSnapshot.docs.map((doc) => doc.data().studentId)
-      );
+  const toggleStudent = (studentId: string) => {
+    const newSelected = new Set(selectedStudents);
+    if (newSelected.has(studentId)) {
+      newSelected.delete(studentId);
+    } else {
+      newSelected.add(studentId);
+    }
+    setSelectedStudents(newSelected);
+  };
 
-      const willAssign = students.filter((s) => !assignedStudentIds.has(s.id)).length;
+  const toggleAllFees = () => {
+    if (selectedFeeItems.size === feeItems.length) {
+      setSelectedFeeItems(new Set());
+    } else {
+      setSelectedFeeItems(new Set(feeItems.map(f => f.id)));
+    }
+  };
 
-      setAssignmentSummary({
-        total: students.length,
-        alreadyAssigned: assignedStudentIds.size,
-        willAssign,
-      });
-    } catch (error) {
-      console.error('Error calculating assignment summary:', error);
+  const toggleAllStudents = () => {
+    if (selectedStudents.size === filteredStudents.length) {
+      setSelectedStudents(new Set());
+    } else {
+      setSelectedStudents(new Set(filteredStudents.map(s => s.id)));
     }
   };
 
   const handleAssignFees = async () => {
-    if (!user?.tenantId || !selectedFeeItem || !assignmentSummary) return;
-
-    if (assignmentSummary.willAssign === 0) {
-      alert('No students to assign fees to');
+    if (!user?.tenantId || selectedFeeItems.size === 0 || selectedStudents.size === 0) {
+      alert('Please select at least one fee item and one student');
       return;
     }
 
-    if (!confirm(`Assign fees to ${assignmentSummary.willAssign} students?`)) {
+    const confirmMsg = `Assign ${selectedFeeItems.size} fee item(s) to ${selectedStudents.size} student(s)?`;
+    if (!confirm(confirmMsg)) {
       return;
     }
 
     try {
       setAssigning(true);
 
-      // Get fee item details
-      const feeItem = feeItems.find((f) => f.id === selectedFeeItem);
-      if (!feeItem) {
-        throw new Error('Fee item not found');
-      }
-
-      // Get already assigned student IDs
+      // Check for existing assignments
       const existingFeesQuery = query(
         collection(db, 'studentFees'),
         where('tenantId', '==', user.tenantId),
-        where('termId', '==', selectedTerm),
-        where('feeStructureItemId', '==', selectedFeeItem)
+        where('termId', '==', selectedTerm)
       );
       const existingFeesSnapshot = await getDocs(existingFeesQuery);
-      const assignedStudentIds = new Set(
-        existingFeesSnapshot.docs.map((doc) => doc.data().studentId)
-      );
 
-      // Filter students who don't have this fee yet
-      const studentsToAssign = students.filter((s) => !assignedStudentIds.has(s.id));
+      // Create a map of existing assignments: studentId-feeStructureItemId -> exists
+      const existingAssignments = new Set<string>();
+      existingFeesSnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        existingAssignments.add(`${data.studentId}-${data.feeStructureItemId}`);
+      });
 
-      // Use batch for better performance
       const batch = writeBatch(db);
-      let batchCount = 0;
+      let assignmentCount = 0;
+      let skippedCount = 0;
 
-      for (const student of studentsToAssign) {
-        const finalAmount = calculateFinalAmount(feeItem.amount, {
-          discountAmount: 0,
-          waiverAmount: 0,
-          latePenaltyPercentage: feeItem.latePenaltyPercentage,
-          isOverdue: false,
-        });
+      // For each selected student and each selected fee
+      for (const studentId of Array.from(selectedStudents)) {
+        const student = students.find(s => s.id === studentId);
+        if (!student) continue;
 
-        const dueDate = feeItem.dueDate instanceof Date ? feeItem.dueDate : feeItem.dueDate.toDate();
-        const overdueStatus = isOverdue(dueDate);
+        for (const feeId of Array.from(selectedFeeItems)) {
+          const feeItem = feeItems.find(f => f.id === feeId);
+          if (!feeItem) continue;
 
-        const studentFee: Omit<StudentFee, 'id'> = {
-          tenantId: user.tenantId,
-          studentId: student.id,
-          feeStructureItemId: feeItem.id,
-          termId: selectedTerm,
-          classId: student.currentClassId,
-          feeType: feeItem.feeType,
-          feeName: feeItem.customName || feeItem.description,
-          baseAmount: feeItem.amount,
-          finalAmount,
-          amountPaid: 0,
-          amountOutstanding: finalAmount,
-          status: overdueStatus ? 'overdue' : 'pending',
-          dueDate: Timestamp.fromDate(dueDate),
-          isOverdue: overdueStatus,
-          allowInstallments: false,
-          createdAt: serverTimestamp() as any,
-          updatedAt: serverTimestamp() as any,
-          assignedBy: user.uid,
-        };
+          // Skip if already assigned
+          const assignmentKey = `${studentId}-${feeId}`;
+          if (existingAssignments.has(assignmentKey)) {
+            skippedCount++;
+            continue;
+          }
 
-        const feeRef = doc(collection(db, 'studentFees'));
-        batch.set(feeRef, studentFee);
+          const finalAmount = calculateFinalAmount(feeItem.amount, {
+            discountAmount: 0,
+            waiverAmount: 0,
+            latePenaltyPercentage: feeItem.latePenaltyPercentage,
+            isOverdue: false,
+          });
 
-        batchCount++;
+          const dueDate = feeItem.dueDate instanceof Date
+            ? feeItem.dueDate
+            : feeItem.dueDate.toDate();
+          const overdueStatus = isOverdue(dueDate);
 
-        // Firestore batch limit is 500 operations
-        if (batchCount >= 500) {
-          await batch.commit();
-          batchCount = 0;
+          const studentFee: any = {
+            tenantId: user.tenantId,
+            studentId: student.id,
+            studentName: `${student.firstName} ${student.lastName}`.trim(),
+            admissionNumber: student.admissionNumber,
+            feeStructureItemId: feeItem.id,
+            termId: selectedTerm,
+            classId: student.currentClassId,
+            feeType: feeItem.feeType,
+            feeName: feeItem.customName || feeItem.description,
+            baseAmount: feeItem.amount,
+            finalAmount,
+            amountPaid: 0,
+            amountOutstanding: finalAmount,
+            status: overdueStatus ? 'overdue' : 'pending',
+            dueDate: Timestamp.fromDate(dueDate),
+            isOverdue: overdueStatus,
+            allowInstallments: false,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+            assignedBy: user.uid,
+          };
+
+          const feeRef = doc(collection(db, 'studentFees'));
+          batch.set(feeRef, studentFee);
+          assignmentCount++;
+
+          // Firestore batch limit is 500 operations
+          if (assignmentCount % 500 === 0) {
+            await batch.commit();
+          }
         }
       }
 
       // Commit remaining operations
-      if (batchCount > 0) {
+      if (assignmentCount % 500 !== 0) {
         await batch.commit();
       }
 
-      alert(`Successfully assigned fees to ${studentsToAssign.length} students`);
+      const message = skippedCount > 0
+        ? `Successfully assigned ${assignmentCount} fees. Skipped ${skippedCount} duplicate assignments.`
+        : `Successfully assigned ${assignmentCount} fees to students.`;
 
-      // Reset and reload
-      setSelectedFeeItem('');
-      calculateAssignmentSummary();
+      alert(message);
+
+      // Reset selections
+      setSelectedFeeItems(new Set());
+      setSelectedStudents(new Set());
     } catch (error) {
       console.error('Error assigning fees:', error);
       alert('Failed to assign fees. Please try again.');
@@ -316,13 +363,13 @@ export default function AssignFeesPage() {
   }
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
+    <div className="p-8 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Assign Fees to Students</h1>
           <p className="text-gray-600 mt-1">
-            Bulk assign fees from structure to students
+            Select fee items and students for flexible assignment
           </p>
         </div>
         <Button variant="outline" onClick={() => router.push('/dashboard/fees')}>
@@ -330,182 +377,211 @@ export default function AssignFeesPage() {
         </Button>
       </div>
 
-      {/* Selection Form */}
+      {/* Term and Class Selection */}
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Select Fee and Students</CardTitle>
+          <CardTitle>Select Term and Class</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Term Selector */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Term *
-            </label>
-            <Select value={selectedTerm} onValueChange={setSelectedTerm}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select term" />
-              </SelectTrigger>
-              <SelectContent>
-                {terms.map((term) => (
-                  <SelectItem key={term.id} value={term.id}>
-                    {term.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Term Selector */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Term *
+              </label>
+              <Select value={selectedTerm} onValueChange={setSelectedTerm}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select term" />
+                </SelectTrigger>
+                <SelectContent>
+                  {terms.map((term) => (
+                    <SelectItem key={term.id} value={term.id}>
+                      {term.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          {/* Class Selector */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Class *
-            </label>
-            <Select value={selectedClass} onValueChange={setSelectedClass}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select class" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Classes</SelectItem>
-                {Array.from(classes.entries()).map(([id, name]) => (
-                  <SelectItem key={id} value={id}>
-                    {name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Fee Item Selector */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Fee to Assign *
-            </label>
-            <Select value={selectedFeeItem} onValueChange={setSelectedFeeItem}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select fee item" />
-              </SelectTrigger>
-              <SelectContent>
-                {feeItems.length === 0 ? (
-                  <SelectItem value="none" disabled>
-                    No fee items available for this term
-                  </SelectItem>
-                ) : (
-                  feeItems.map((item) => {
-                    const className = item.classId ? classes.get(item.classId) : 'All Classes';
-                    return (
-                      <SelectItem key={item.id} value={item.id}>
-                        {item.customName || item.description} - {formatCurrency(item.amount)} ({className})
-                      </SelectItem>
-                    );
-                  })
-                )}
-              </SelectContent>
-            </Select>
+            {/* Class Selector */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Class *
+              </label>
+              <Select value={selectedClass} onValueChange={setSelectedClass}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select class" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Classes</SelectItem>
+                  {Array.from(classes.entries()).map(([id, name]) => (
+                    <SelectItem key={id} value={id}>
+                      {name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Assignment Summary */}
-      {assignmentSummary && (
-        <Card className="mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        {/* Fee Items Selection */}
+        <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <UserGroupIcon className="h-5 w-5" />
-              Assignment Summary
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle>Fee Items ({selectedFeeItems.size} selected)</CardTitle>
+              {feeItems.length > 0 && (
+                <Button variant="outline" size="sm" onClick={toggleAllFees}>
+                  {selectedFeeItems.size === feeItems.length ? 'Deselect All' : 'Select All'}
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-3 gap-6">
-              <div className="text-center p-4 bg-blue-50 rounded-lg">
-                <p className="text-3xl font-bold text-blue-600">
-                  {assignmentSummary.total}
-                </p>
-                <p className="text-sm text-gray-600 mt-1">Total Students</p>
+            {feeItems.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <p>No fee items available for this term</p>
+                <Button
+                  variant="outline"
+                  className="mt-4"
+                  onClick={() => router.push('/dashboard/fees/structure')}
+                >
+                  Create Fee Structure
+                </Button>
               </div>
-              <div className="text-center p-4 bg-green-50 rounded-lg">
-                <p className="text-3xl font-bold text-green-600">
-                  {assignmentSummary.alreadyAssigned}
-                </p>
-                <p className="text-sm text-gray-600 mt-1">Already Assigned</p>
-              </div>
-              <div className="text-center p-4 bg-yellow-50 rounded-lg">
-                <p className="text-3xl font-bold text-yellow-600">
-                  {assignmentSummary.willAssign}
-                </p>
-                <p className="text-sm text-gray-600 mt-1">Will Be Assigned</p>
-              </div>
-            </div>
-
-            {assignmentSummary.willAssign === 0 && (
-              <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <CheckCircleIcon className="h-6 w-6 text-green-600" />
-                  <div>
-                    <p className="font-medium text-green-900">
-                      All students already have this fee assigned
-                    </p>
-                    <p className="text-sm text-green-700 mt-1">
-                      No new assignments needed
-                    </p>
-                  </div>
-                </div>
+            ) : (
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {feeItems.map((item) => {
+                  const className = item.classId ? classes.get(item.classId) : 'All Classes';
+                  return (
+                    <label
+                      key={item.id}
+                      className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                        selectedFeeItems.has(item.id)
+                          ? 'bg-blue-50 border-blue-500'
+                          : 'bg-white border-gray-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedFeeItems.has(item.id)}
+                        onChange={() => toggleFeeItem(item.id)}
+                        className="mt-1 h-4 w-4 text-blue-600 rounded"
+                      />
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900">
+                          {item.customName || item.description}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {formatCurrency(item.amount)} • {className}
+                        </p>
+                      </div>
+                    </label>
+                  );
+                })}
               </div>
             )}
+          </CardContent>
+        </Card>
 
-            {assignmentSummary.willAssign > 0 && (
+        {/* Students Selection */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Students ({selectedStudents.size} selected)</CardTitle>
+              {students.length > 0 && (
+                <Button variant="outline" size="sm" onClick={toggleAllStudents}>
+                  {selectedStudents.size === filteredStudents.length ? 'Deselect All' : 'Select All'}
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {students.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <p>No students found in {selectedClass === 'all' ? 'any class' : 'this class'}</p>
+              </div>
+            ) : (
               <>
-                <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <ExclamationTriangleIcon className="h-6 w-6 text-yellow-600" />
-                    <div>
-                      <p className="font-medium text-yellow-900">
-                        Ready to assign fees to {assignmentSummary.willAssign} students
-                      </p>
-                      <p className="text-sm text-yellow-700 mt-1">
-                        This action will create fee records for all students who don't have this fee yet
-                      </p>
-                    </div>
-                  </div>
+                {/* Search */}
+                <div className="mb-4 relative">
+                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <Input
+                    placeholder="Search by name or admission number..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
                 </div>
 
-                <Button
-                  onClick={handleAssignFees}
-                  disabled={assigning}
-                  className="w-full mt-6"
-                  size="lg"
-                >
-                  <CheckCircleIcon className="h-5 w-5 mr-2" />
-                  {assigning
-                    ? 'Assigning Fees...'
-                    : `Assign Fees to ${assignmentSummary.willAssign} Students`}
-                </Button>
+                {/* Students List */}
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {filteredStudents.map((student) => (
+                    <label
+                      key={student.id}
+                      className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                        selectedStudents.has(student.id)
+                          ? 'bg-blue-50 border-blue-500'
+                          : 'bg-white border-gray-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedStudents.has(student.id)}
+                        onChange={() => toggleStudent(student.id)}
+                        className="mt-1 h-4 w-4 text-blue-600 rounded"
+                      />
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900">
+                          {student.firstName} {student.lastName}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {student.admissionNumber} • {student.currentClassName || 'No Class'}
+                        </p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
               </>
             )}
           </CardContent>
         </Card>
-      )}
+      </div>
 
-      {/* Help Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle>How to Use This Tool</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700">
-            <li>Select the term for which you want to assign fees</li>
-            <li>Choose a class (or "All Classes" to assign to all students)</li>
-            <li>Select the fee item from the fee structure</li>
-            <li>Review the assignment summary to see how many students will receive the fee</li>
-            <li>Click "Assign Fees" to create fee records for all eligible students</li>
-          </ol>
-          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm text-blue-900">
-              <strong>Note:</strong> Students who already have this fee assigned will be skipped automatically.
-              This prevents duplicate fee assignments.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Assignment Summary and Action */}
+      {selectedFeeItems.size > 0 && selectedStudents.size > 0 && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="text-center p-4 bg-blue-50 rounded-lg">
+                  <p className="text-2xl font-bold text-blue-600">{selectedFeeItems.size}</p>
+                  <p className="text-sm text-gray-600">Fee Items</p>
+                </div>
+                <span className="text-2xl text-gray-400">×</span>
+                <div className="text-center p-4 bg-green-50 rounded-lg">
+                  <p className="text-2xl font-bold text-green-600">{selectedStudents.size}</p>
+                  <p className="text-sm text-gray-600">Students</p>
+                </div>
+                <span className="text-2xl text-gray-400">=</span>
+                <div className="text-center p-4 bg-yellow-50 rounded-lg">
+                  <p className="text-2xl font-bold text-yellow-600">
+                    {selectedFeeItems.size * selectedStudents.size}
+                  </p>
+                  <p className="text-sm text-gray-600">Total Assignments</p>
+                </div>
+              </div>
+
+              <Button onClick={handleAssignFees} disabled={assigning} size="lg">
+                <CheckCircleIcon className="h-5 w-5 mr-2" />
+                {assigning ? 'Assigning...' : 'Assign Fees'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
