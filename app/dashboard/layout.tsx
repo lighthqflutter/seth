@@ -197,6 +197,21 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
                   </Link>
                 ))}
               </nav>
+
+              {/* Footer */}
+              <div className="px-3 py-4 border-t border-gray-200">
+                <p className="text-xs text-center text-gray-500">
+                  Powered by{' '}
+                  <a
+                    href="https://seth.ng"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    SETH SchoolPortal
+                  </a>
+                </p>
+              </div>
             </div>
           </div>
         </aside>

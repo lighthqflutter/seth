@@ -81,31 +81,33 @@ export default function AttendanceDashboard() {
       if (!user?.tenantId) return;
 
       try {
-        // Load all active classes
+        // Load all classes (filter for active in-memory if needed)
         const classesQuery = query(
           collection(db, 'classes'),
-          where('tenantId', '==', user.tenantId),
-          where('isActive', '==', true)
+          where('tenantId', '==', user.tenantId)
         );
 
         const classesSnapshot = await getDocs(classesQuery);
-        const classesData = classesSnapshot.docs.map(doc => ({
-          id: doc.id,
-          name: doc.data().name,
-        }));
+        const classesData = classesSnapshot.docs
+          .filter(doc => doc.data().isActive !== false) // Treat undefined/null as active
+          .map(doc => ({
+            id: doc.id,
+            name: doc.data().name,
+          }));
 
         // Load students count per class
         const studentsQuery = query(
           collection(db, 'students'),
-          where('tenantId', '==', user.tenantId),
-          where('isActive', '==', true)
+          where('tenantId', '==', user.tenantId)
         );
 
         const studentsSnapshot = await getDocs(studentsQuery);
-        const studentsData = studentsSnapshot.docs.map(doc => ({
-          id: doc.id,
-          currentClassId: doc.data().currentClassId,
-        }));
+        const studentsData = studentsSnapshot.docs
+          .filter(doc => doc.data().isActive !== false) // Treat undefined/null as active
+          .map(doc => ({
+            id: doc.id,
+            currentClassId: doc.data().currentClassId,
+          }));
 
         // Today's attendance
         const today = new Date();
