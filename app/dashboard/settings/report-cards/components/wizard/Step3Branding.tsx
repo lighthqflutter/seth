@@ -134,14 +134,12 @@ export default function Step3Branding({
           <CardContent className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Preset Colors
+                Color Schemes
               </label>
               <div className="grid grid-cols-2 gap-2">
                 {[
                   { value: 'primary' as const, label: 'Primary Blue', color: 'bg-blue-600' },
-                  { value: 'green' as const, label: 'Green', color: 'bg-green-600' },
-                  { value: 'purple' as const, label: 'Purple', color: 'bg-purple-600' },
-                  { value: 'gray' as const, label: 'Gray', color: 'bg-gray-600' },
+                  { value: 'grayscale' as const, label: 'Grayscale', color: 'bg-gray-600' },
                 ].map((scheme) => (
                   <button
                     key={scheme.value}
