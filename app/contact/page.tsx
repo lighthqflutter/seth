@@ -25,36 +25,33 @@ export default function ContactPage() {
     setError('');
 
     try {
-      // Create mailto link with pre-filled content
-      const subject = encodeURIComponent(`School Portal Inquiry - ${schoolName}`);
-      const body = encodeURIComponent(`
-School Information Request
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // Send inquiry via API
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          schoolName,
+          contactName,
+          email,
+          phone,
+          studentCount,
+          message,
+        }),
+      });
 
-SCHOOL DETAILS:
-School Name: ${schoolName}
-Contact Person: ${contactName}
-Email: ${email}
-Phone: ${phone}
-Estimated Student Count: ${studentCount || 'Not specified'}
+      const data = await response.json();
 
-MESSAGE:
-${message}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Sent from SETH School Portal Contact Form
-      `.trim());
-
-      const mailtoLink = `mailto:hello@seth.ng?subject=${subject}&body=${body}`;
-
-      // Open mailto link
-      window.location.href = mailtoLink;
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send inquiry');
+      }
 
       // Show success message
       setSubmitted(true);
     } catch (err: any) {
       console.error('Contact form error:', err);
-      setError('Failed to send inquiry. Please try emailing support@lighthousemultimedia.net directly.');
+      setError(err.message || 'Failed to send inquiry. Please try again or contact us directly.');
     } finally {
       setLoading(false);
     }
@@ -71,7 +68,7 @@ Sent from SETH School Portal Contact Form
               </div>
               <CardTitle className="text-2xl">Inquiry Sent!</CardTitle>
               <CardDescription className="mt-2">
-                Your email client should have opened with a pre-filled message
+                We've received your inquiry and sent you a confirmation email
               </CardDescription>
             </div>
           </CardHeader>
@@ -81,14 +78,15 @@ Sent from SETH School Portal Contact Form
                 <strong>What's next?</strong>
               </p>
               <ul className="space-y-1 text-blue-800">
-                <li>• Review and send the email from your email client</li>
+                <li>• Check your email ({email}) for a confirmation message</li>
                 <li>• Our team will respond within 24 hours</li>
-                <li>• We'll help set up your school portal and student quota</li>
+                <li>• We'll set up your school portal and send login credentials</li>
+                <li>• You'll receive setup instructions via email</li>
               </ul>
             </div>
 
             <div className="text-xs text-gray-600 text-center">
-              <p>If your email client didn't open, please contact us directly:</p>
+              <p>Need immediate assistance?</p>
               <div className="mt-2 space-y-1">
                 <div>
                   <a href="mailto:hello@seth.ng" className="text-blue-600 hover:underline font-medium">
