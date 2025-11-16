@@ -107,9 +107,16 @@ export default function ScoreEntryPage() {
           where('isActive', '==', true)
         );
         const snapshot = await getDocs(configurationsQuery);
-        const configsData = snapshot.docs.map(doc => ({
+        const configsData: ScoreConfiguration[] = snapshot.docs.map(doc => ({
           id: doc.id,
-          ...doc.data(),
+          tenantId: doc.data().tenantId,
+          name: doc.data().name,
+          description: doc.data().description,
+          isDefault: doc.data().isDefault,
+          isActive: doc.data().isActive,
+          assessmentConfig: doc.data().assessmentConfig,
+          createdAt: doc.data().createdAt,
+          updatedAt: doc.data().updatedAt,
         }));
         setConfigurations(configsData);
 
