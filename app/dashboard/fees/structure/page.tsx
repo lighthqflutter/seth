@@ -388,14 +388,14 @@ export default function FeeStructurePage() {
                   Class (Leave empty for all classes)
                 </label>
                 <Select
-                  value={formData.classId}
-                  onValueChange={(value) => setFormData({ ...formData, classId: value })}
+                  value={formData.classId || 'all'}
+                  onValueChange={(value) => setFormData({ ...formData, classId: value === 'all' ? '' : value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="All Classes" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Classes</SelectItem>
+                    <SelectItem value="all">All Classes</SelectItem>
                     {Array.from(classes.entries()).map(([id, name]) => (
                       <SelectItem key={id} value={id}>
                         {name}
