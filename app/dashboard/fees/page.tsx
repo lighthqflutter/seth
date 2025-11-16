@@ -95,25 +95,46 @@ export default function FeesPage() {
         ...doc.data(),
       })) as StudentFee[];
 
-      // Calculate statistics
-      const uniqueStudents = new Set(fees.map((f) => f.studentId));
-      const studentsWithFees = uniqueStudents.size;
+      console.log('=== FEES DASHBOARD DEBUG ===');
+      console.log('Term:', termData);
+      console.log('Total fees loaded:', fees.length);
+      console.log('Sample fee:', fees[0]);
+      console.log('===========================');
 
-      const studentsFullyPaid = new Set(
-        fees.filter((f) => f.status === 'paid').map((f) => f.studentId)
-      ).size;
+      // Calculate statistics - group fees by student first
+      const feesByStudent = new Map<string, StudentFee[]>();
+      fees.forEach((fee) => {
+        if (!feesByStudent.has(fee.studentId)) {
+          feesByStudent.set(fee.studentId, []);
+        }
+        feesByStudent.get(fee.studentId)!.push(fee);
+      });
 
-      const studentsPartiallyPaid = new Set(
-        fees.filter((f) => f.status === 'partial').map((f) => f.studentId)
-      ).size;
+      const uniqueStudents = feesByStudent.size;
+      const studentsWithFees = uniqueStudents;
 
-      const studentsPending = new Set(
-        fees.filter((f) => f.status === 'pending').map((f) => f.studentId)
-      ).size;
+      // Count students by their overall status
+      let studentsFullyPaid = 0;
+      let studentsPartiallyPaid = 0;
+      let studentsPending = 0;
+      let studentsOverdue = 0;
 
-      const studentsOverdue = new Set(
-        fees.filter((f) => f.isOverdue && f.status !== 'paid').map((f) => f.studentId)
-      ).size;
+      feesByStudent.forEach((studentFees, studentId) => {
+        const hasOverdue = studentFees.some(f => f.isOverdue && f.status !== 'paid');
+        const allPaid = studentFees.every(f => f.status === 'paid');
+        const anyPaid = studentFees.some(f => f.amountPaid > 0);
+        const allPending = studentFees.every(f => f.status === 'pending');
+
+        if (hasOverdue) {
+          studentsOverdue++;
+        } else if (allPaid) {
+          studentsFullyPaid++;
+        } else if (anyPaid) {
+          studentsPartiallyPaid++;
+        } else if (allPending) {
+          studentsPending++;
+        }
+      });
 
       const summary = calculatePaymentSummary(fees);
 
