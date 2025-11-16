@@ -1,0 +1,203 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper function: Get user's tenant from their user document
+    function getUserTenant() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId;
+    }
+
+    // Helper function: Check if user is admin
+    function isAdmin() {
+      return request.auth.token.role == 'admin';
+    }
+
+    // Helper function: Check if user is teacher or admin
+    function isTeacher() {
+      return request.auth.token.role in ['teacher', 'admin'];
+    }
+
+    // Tenants: Only authenticated users can read their own tenant, admins can update
+    match /tenants/{tenantId} {
+      allow read: if request.auth != null && getUserTenant() == tenantId;
+      allow update: if isAdmin() && getUserTenant() == tenantId;
+      allow create, delete: if false; // Only via admin SDK
+    }
+
+    // Users: Can read/update own profile, admins can create teachers
+    match /users/{userId} {
+      allow read: if request.auth.uid == userId ||
+                     (request.auth != null && resource.data.tenantId == getUserTenant());
+      allow update: if request.auth.uid == userId;
+      allow create: if isAdmin() && request.resource.data.tenantId == getUserTenant();
+      allow delete: if false; // Only via admin SDK
+    }
+
+    // Students: Tenant-scoped access
+    match /students/{studentId} {
+      allow read: if request.auth != null &&
+                     resource.data.tenantId == getUserTenant();
+      allow create: if isAdmin() &&
+                       request.resource.data.tenantId == getUserTenant();
+      allow update, delete: if isAdmin() &&
+                               resource.data.tenantId == getUserTenant();
+    }
+
+    // Teachers: Tenant-scoped access
+    match /teachers/{teacherId} {
+      allow read: if request.auth != null &&
+                     resource.data.tenantId == getUserTenant();
+      allow create, update, delete: if isAdmin() &&
+                                       request.resource.data.tenantId == getUserTenant();
+    }
+
+    // Classes: Tenant-scoped
+    match /classes/{classId} {
+      allow read: if request.auth != null &&
+                     resource.data.tenantId == getUserTenant();
+      allow write: if isAdmin() &&
+                      request.resource.data.tenantId == getUserTenant();
+    }
+
+    // Subjects: Tenant-scoped
+    match /subjects/{subjectId} {
+      allow read: if request.auth != null &&
+                     resource.data.tenantId == getUserTenant();
+      allow write: if isAdmin() &&
+                      request.resource.data.tenantId == getUserTenant();
+    }
+
+    // Terms: Tenant-scoped
+    match /terms/{termId} {
+      allow read: if request.auth != null &&
+                     resource.data.tenantId == getUserTenant();
+      allow write: if isAdmin() &&
+                      request.resource.data.tenantId == getUserTenant();
+    }
+
+    // Scores: Teachers can create/update their own scores
+    match /scores/{scoreId} {
+      allow read: if request.auth != null &&
+                     resource.data.tenantId == getUserTenant();
+      allow create: if isTeacher() &&
+                       request.resource.data.tenantId == getUserTenant() &&
+                       request.resource.data.teacherId == request.auth.uid;
+      allow update: if isTeacher() &&
+                       resource.data.tenantId == getUserTenant() &&
+                       resource.data.teacherId == request.auth.uid;
+      allow delete: if isAdmin() &&
+                       resource.data.tenantId == getUserTenant();
+    }
+
+    // Results: Read-only for most users, write for admins
+    match /results/{resultId} {
+      allow read: if request.auth != null &&
+                     resource.data.tenantId == getUserTenant();
+      allow write: if isAdmin() &&
+                      request.resource.data.tenantId == getUserTenant();
+    }
+
+    // Score Configurations: Admins can manage, everyone can read
+    match /scoreConfigurations/{configId} {
+      allow read: if request.auth != null &&
+                     resource.data.tenantId == getUserTenant();
+      allow write: if isAdmin() &&
+                      request.resource.data.tenantId == getUserTenant();
+    }
+
+    // Attendance: Teachers and admins can manage
+    match /attendance/{attendanceId} {
+      allow read: if request.auth != null &&
+                     resource.data.tenantId == getUserTenant();
+      allow create: if isTeacher() &&
+                       request.resource.data.tenantId == getUserTenant();
+      allow update: if isTeacher() &&
+                       resource.data.tenantId == getUserTenant();
+      allow delete: if isAdmin() &&
+                       resource.data.tenantId == getUserTenant();
+    }
+
+    // Guardians: Tenant-scoped access
+    match /guardians/{guardianId} {
+      allow read: if request.auth != null &&
+                     resource.data.tenantId == getUserTenant();
+      allow create, update, delete: if isAdmin() &&
+                                       request.resource.data.tenantId == getUserTenant();
+    }
+
+    // Fees: Tenant-scoped access
+    match /fees/{feeId} {
+      allow read: if request.auth != null &&
+                     resource.data.tenantId == getUserTenant();
+      allow write: if isAdmin() &&
+                      request.resource.data.tenantId == getUserTenant();
+    }
+
+    // Student Fees: Tenant-scoped access (individual student fee records)
+    match /studentFees/{studentFeeId} {
+      allow read: if request.auth != null &&
+                     resource.data.tenantId == getUserTenant();
+      allow create, update: if isAdmin() &&
+                               request.resource.data.tenantId == getUserTenant();
+      allow delete: if isAdmin() &&
+                       resource.data.tenantId == getUserTenant();
+    }
+
+    // Payments: Tenant-scoped access
+    match /payments/{paymentId} {
+      allow read: if request.auth != null &&
+                     resource.data.tenantId == getUserTenant();
+      allow create, update: if isAdmin() &&
+                               request.resource.data.tenantId == getUserTenant();
+      allow delete: if isAdmin() &&
+                       resource.data.tenantId == getUserTenant();
+    }
+
+    // Fee Structure Items: Tenant-scoped access
+    match /feeStructureItems/{feeItemId} {
+      allow read: if request.auth != null &&
+                     resource.data.tenantId == getUserTenant();
+      allow create, update: if isAdmin() &&
+                               request.resource.data.tenantId == getUserTenant();
+      allow delete: if isAdmin() &&
+                       resource.data.tenantId == getUserTenant();
+    }
+
+    // Skills: Teachers and admins can manage
+    match /skills/{skillId} {
+      allow read: if request.auth != null &&
+                     resource.data.tenantId == getUserTenant();
+      allow create, update: if isTeacher() &&
+                               request.resource.data.tenantId == getUserTenant();
+      allow delete: if isAdmin() &&
+                       resource.data.tenantId == getUserTenant();
+    }
+
+    // Audit Logs: Anyone can create (log their actions), only admins can read
+    match /auditLogs/{logId} {
+      allow read: if isAdmin() &&
+                     resource.data.tenantId == getUserTenant();
+      allow create: if request.auth != null &&
+                       request.resource.data.tenantId == getUserTenant() &&
+                       request.resource.data.userId == request.auth.uid;
+    }
+
+    // Report Card Templates: Admins can manage, everyone can read within tenant
+    match /reportCardTemplates/{templateId} {
+      allow read: if request.auth != null &&
+                     resource.data.tenantId == getUserTenant();
+      allow create: if isAdmin() &&
+                       request.resource.data.tenantId == getUserTenant();
+      allow update: if isAdmin() &&
+                       resource.data.tenantId == getUserTenant() &&
+                       request.resource.data.tenantId == getUserTenant();
+      allow delete: if isAdmin() &&
+                       resource.data.tenantId == getUserTenant();
+    }
+
+    // Default: Deny all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

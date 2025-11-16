@@ -26,6 +26,7 @@ interface StudentScore {
   total?: number;
   grade?: string;
   errors?: string[];
+  scoreId?: string; // Firestore document ID for updates
 }
 
 interface ScoreConfiguration {
@@ -137,12 +138,13 @@ export default function ScoreEntryPage() {
     loadConfigurations();
   }, [user?.tenantId]);
 
-  // Load students
+  // Load students and existing scores
   useEffect(() => {
-    const loadStudents = async () => {
-      if (!user?.tenantId || !classId) return;
+    const loadStudentsAndScores = async () => {
+      if (!user?.tenantId || !classId || !subjectId || !termId) return;
 
       try {
+        // Load students
         const studentsQuery = query(
           collection(db, 'students'),
           where('tenantId', '==', user.tenantId),
@@ -150,34 +152,75 @@ export default function ScoreEntryPage() {
           where('isActive', '==', true)
         );
 
-        const snapshot = await getDocs(studentsQuery);
-        const studentsData = snapshot.docs.map(doc => ({
+        const studentsSnapshot = await getDocs(studentsQuery);
+        const studentsData = studentsSnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
         })) as Student[];
 
         setStudents(studentsData);
 
-        // Initialize scores map
+        // Load existing scores for this class, subject, and term
+        const existingScoresQuery = query(
+          collection(db, 'scores'),
+          where('tenantId', '==', user.tenantId),
+          where('classId', '==', classId),
+          where('subjectId', '==', subjectId),
+          where('termId', '==', termId)
+        );
+
+        const scoresSnapshot = await getDocs(existingScoresQuery);
+        const existingScoresMap = new Map();
+
+        scoresSnapshot.docs.forEach(doc => {
+          const data = doc.data();
+          existingScoresMap.set(data.studentId, {
+            scoreId: doc.id, // Store the document ID for updates
+            ...data,
+          });
+        });
+
+        // Initialize scores map with existing data or empty
         const scoresMap = new Map<string, StudentScore>();
         studentsData.forEach(student => {
-          scoresMap.set(student.id, {
-            studentId: student.id,
-            assessmentScores: {},
-            isAbsent: false,
-          });
+          const existingScore = existingScoresMap.get(student.id);
+
+          if (existingScore) {
+            // Load existing scores
+            scoresMap.set(student.id, {
+              studentId: student.id,
+              assessmentScores: existingScore.assessmentScores || {},
+              isAbsent: existingScore.isAbsent || false,
+              total: existingScore.total,
+              grade: existingScore.grade,
+              scoreId: existingScore.scoreId, // Store for updates
+            });
+          } else {
+            // Initialize empty
+            scoresMap.set(student.id, {
+              studentId: student.id,
+              assessmentScores: {},
+              isAbsent: false,
+            });
+          }
         });
         setScores(scoresMap);
 
+        // Show info message if existing scores were loaded
+        const loadedCount = existingScoresMap.size;
+        if (loadedCount > 0) {
+          console.log(`✓ Loaded ${loadedCount} existing score(s) for editing`);
+        }
+
         setLoading(false);
       } catch (error) {
-        console.error('Error loading students:', error);
+        console.error('Error loading students and scores:', error);
         setLoading(false);
       }
     };
 
-    loadStudents();
-  }, [user?.tenantId, classId]);
+    loadStudentsAndScores();
+  }, [user?.tenantId, classId, subjectId, termId]);
 
   // Handle configuration change
   const handleConfigurationChange = (configId: string) => {
@@ -458,11 +501,21 @@ export default function ScoreEntryPage() {
           isLocked: false,
           publishedAt: !isDraft ? Timestamp.now() : null,
           submittedAt: !isDraft ? Timestamp.now() : null,
-          createdAt: Timestamp.now(),
           updatedAt: Timestamp.now(),
         };
 
-        await addDoc(scoresCollection, scoreData);
+        // Update existing score or create new one
+        if (studentScore.scoreId) {
+          // Update existing score
+          const scoreRef = doc(db, 'scores', studentScore.scoreId);
+          await updateDoc(scoreRef, scoreData);
+        } else {
+          // Create new score
+          await addDoc(scoresCollection, {
+            ...scoreData,
+            createdAt: Timestamp.now(),
+          });
+        }
       }
 
       // Audit log: Scores published/saved
@@ -544,12 +597,35 @@ export default function ScoreEntryPage() {
     );
   }
 
+  // Check if any existing scores are loaded
+  const existingScoresCount = Array.from(scores.values()).filter(s => s.scoreId).length;
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Score Entry</h1>
         <p className="text-gray-600 mt-1">Enter scores for all students</p>
       </div>
+
+      {/* Existing Scores Info Banner */}
+      {existingScoresCount > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <svg className="w-5 h-5 text-blue-600 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+            </svg>
+            <div className="flex-1">
+              <h3 className="text-sm font-medium text-blue-900">
+                Editing Existing Scores
+              </h3>
+              <p className="text-sm text-blue-700 mt-1">
+                {existingScoresCount} student{existingScoresCount > 1 ? 's have' : ' has'} previously entered scores.
+                You can edit them and click "Publish Scores" to update.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Configuration Selector */}
       {!loadingConfigs && (

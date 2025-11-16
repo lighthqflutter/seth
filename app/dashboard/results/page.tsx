@@ -55,10 +55,25 @@ export default function ResultsPage() {
         );
 
         const classesSnapshot = await getDocs(classesQuery);
-        const classesData = classesSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as Class[];
+        const classesData = await Promise.all(
+          classesSnapshot.docs.map(async (doc) => {
+            const classData = { id: doc.id, ...doc.data() };
+
+            // Count students in this class
+            const studentsQuery = query(
+              collection(db, 'students'),
+              where('tenantId', '==', user.tenantId),
+              where('currentClassId', '==', doc.id),
+              where('isActive', '==', true)
+            );
+            const studentsSnapshot = await getDocs(studentsQuery);
+
+            return {
+              ...classData,
+              studentCount: studentsSnapshot.size,
+            } as Class;
+          })
+        );
         setClasses(classesData);
 
         // Load terms

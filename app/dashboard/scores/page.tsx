@@ -24,6 +24,8 @@ interface Term {
   name: string;
   startDate: Date;
   endDate: Date;
+  isCurrent?: boolean;
+  academicYear?: string;
 }
 
 export default function ScoresPage() {
@@ -71,7 +73,8 @@ export default function ScoresPage() {
         // Load terms
         const termsQuery = query(
           collection(db, 'terms'),
-          where('tenantId', '==', user.tenantId)
+          where('tenantId', '==', user.tenantId),
+          orderBy('startDate', 'desc')
         );
         const termsSnapshot = await getDocs(termsQuery);
         const termsData = termsSnapshot.docs.map(doc => {
@@ -81,9 +84,17 @@ export default function ScoresPage() {
             name: data.name,
             startDate: data.startDate?.toDate(),
             endDate: data.endDate?.toDate(),
+            isCurrent: data.isCurrent || false,
+            academicYear: data.academicYear,
           };
         }) as Term[];
         setTerms(termsData);
+
+        // Auto-select current term
+        const currentTerm = termsData.find(t => t.isCurrent);
+        if (currentTerm) {
+          setSelectedTerm(currentTerm.id);
+        }
 
         setLoading(false);
       } catch (error) {
@@ -223,18 +234,28 @@ export default function ScoresPage() {
                 </Button>
               </div>
             ) : (
-              <select
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                value={selectedTerm}
-                onChange={(e) => setSelectedTerm(e.target.value)}
-              >
-                <option value="">Choose a term...</option>
-                {terms.map((term) => (
-                  <option key={term.id} value={term.id}>
-                    {term.name}
-                  </option>
-                ))}
-              </select>
+              <>
+                <select
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  value={selectedTerm}
+                  onChange={(e) => setSelectedTerm(e.target.value)}
+                >
+                  <option value="">Choose a term...</option>
+                  {terms.map((term) => (
+                    <option key={term.id} value={term.id}>
+                      {term.name} {term.isCurrent ? '(Current)' : ''} - {term.academicYear}
+                    </option>
+                  ))}
+                </select>
+                {selectedTerm && !terms.find(t => t.id === selectedTerm)?.isCurrent && (
+                  <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p className="text-sm text-yellow-800">
+                      ⚠️ <strong>Warning:</strong> You are entering scores for a non-current term.
+                      Make sure this is intentional.
+                    </p>
+                  </div>
+                )}
+              </>
             )}
           </div>
 
