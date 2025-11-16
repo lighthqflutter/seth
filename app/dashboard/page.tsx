@@ -1,38 +1,101 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase/client';
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    students: 0,
+    teachers: 0,
+    classes: 0,
+    pendingScores: 0,
+  });
 
-  const stats = [
+  useEffect(() => {
+    const loadStats = async () => {
+      if (!user?.tenantId) return;
+
+      try {
+        // Load students
+        const studentsQuery = query(
+          collection(db, 'students'),
+          where('tenantId', '==', user.tenantId),
+          where('isActive', '==', true)
+        );
+        const studentsSnapshot = await getDocs(studentsQuery);
+
+        // Load teachers
+        const teachersQuery = query(
+          collection(db, 'users'),
+          where('tenantId', '==', user.tenantId),
+          where('role', '==', 'teacher'),
+          where('isActive', '==', true)
+        );
+        const teachersSnapshot = await getDocs(teachersQuery);
+
+        // Load classes
+        const classesQuery = query(
+          collection(db, 'classes'),
+          where('tenantId', '==', user.tenantId)
+        );
+        const classesSnapshot = await getDocs(classesQuery);
+
+        // Load pending scores
+        const scoresQuery = query(
+          collection(db, 'scores'),
+          where('tenantId', '==', user.tenantId),
+          where('isDraft', '==', true)
+        );
+        const scoresSnapshot = await getDocs(scoresQuery);
+
+        setStats({
+          students: studentsSnapshot.size,
+          teachers: teachersSnapshot.size,
+          classes: classesSnapshot.size,
+          pendingScores: scoresSnapshot.size,
+        });
+        setLoading(false);
+      } catch (error) {
+        console.error('Error loading dashboard stats:', error);
+        setLoading(false);
+      }
+    };
+
+    loadStats();
+  }, [user?.tenantId]);
+
+  const statsDisplay = [
     {
       name: 'Total Students',
-      value: '0',
-      change: '+0 this month',
+      value: loading ? '...' : stats.students.toString(),
+      change: loading ? '' : `${stats.students} active`,
       icon: '📚',
       href: '/dashboard/students',
     },
     {
       name: 'Teachers',
-      value: '0',
+      value: loading ? '...' : stats.teachers.toString(),
       change: 'Active staff',
       icon: '👨‍🏫',
       href: '/dashboard/teachers',
     },
     {
       name: 'Classes',
-      value: '0',
+      value: loading ? '...' : stats.classes.toString(),
       change: 'Academic year 2024/25',
       icon: '🏫',
       href: '/dashboard/classes',
     },
     {
       name: 'Pending Scores',
-      value: '0',
+      value: loading ? '...' : stats.pendingScores.toString(),
       change: 'To be published',
       icon: '📝',
       href: '/dashboard/scores',
@@ -97,7 +160,7 @@ export default function DashboardPage() {
 
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
+        {statsDisplay.map((stat) => (
           <Link key={stat.name} href={stat.href}>
             <Card className="hover:shadow-md transition-shadow cursor-pointer">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
