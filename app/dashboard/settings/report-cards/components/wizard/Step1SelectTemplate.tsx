@@ -152,7 +152,7 @@ export default function Step1SelectTemplate({ templateConfig, updateConfig, onNe
             </div>
             <div className="ml-3">
               <h3 className="text-sm font-medium text-blue-900">
-                {TEMPLATE_PREVIEWS.find(p => p.type === selectedType)?.name} Selected
+                {selectedType && TEMPLATE_PREVIEWS[selectedType]?.name} Selected
               </h3>
               <p className="text-sm text-blue-700 mt-1">
                 You can customize all sections, branding, and layout options in the next steps.
