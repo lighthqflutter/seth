@@ -72,14 +72,16 @@ export default function FeesPage() {
       const termData = { id: term.id, name: term.data().name };
       setCurrentTerm(termData);
 
-      // Load all students
+      // Load all students (filter isActive in-memory for backward compatibility)
       const studentsQuery = query(
         collection(db, 'students'),
-        where('tenantId', '==', user.tenantId),
-        where('isActive', '==', true)
+        where('tenantId', '==', user.tenantId)
       );
       const studentsSnapshot = await getDocs(studentsQuery);
-      const totalStudents = studentsSnapshot.size;
+      const activeStudents = studentsSnapshot.docs.filter(
+        doc => doc.data().isActive !== false
+      );
+      const totalStudents = activeStudents.length;
 
       // Load student fees for current term
       const feesQuery = query(
