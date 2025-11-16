@@ -62,6 +62,9 @@ export default function AttendanceDashboard() {
 
   const [loading, setLoading] = useState(true);
   const [classes, setClasses] = useState<ClassWithStats[]>([]);
+  const [isSchoolDay, setIsSchoolDay] = useState(false);
+  const [schoolDayMessage, setSchoolDayMessage] = useState('');
+  const [activeTerm, setActiveTerm] = useState<any>(null);
   const [stats, setStats] = useState({
     totalStudents: 0,
     classesMarkedToday: 0,
@@ -81,6 +84,54 @@ export default function AttendanceDashboard() {
       if (!user?.tenantId) return;
 
       try {
+        // Check if today is a school day (Monday-Friday within active term)
+        const today = new Date();
+        const dayOfWeek = today.getDay(); // 0 = Sunday, 6 = Saturday
+        const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
+
+        // Load active term
+        const termsQuery = query(
+          collection(db, 'terms'),
+          where('tenantId', '==', user.tenantId),
+          where('isActive', '==', true)
+        );
+        const termsSnapshot = await getDocs(termsQuery);
+
+        let currentTerm = null;
+        let isWithinTermDates = false;
+
+        if (!termsSnapshot.empty) {
+          currentTerm = {
+            id: termsSnapshot.docs[0].id,
+            ...termsSnapshot.docs[0].data(),
+          };
+          setActiveTerm(currentTerm);
+
+          // Check if today is within term dates
+          const termStart = currentTerm.startDate?.toDate();
+          const termEnd = currentTerm.endDate?.toDate();
+
+          if (termStart && termEnd) {
+            const todayMidnight = new Date(today);
+            todayMidnight.setHours(0, 0, 0, 0);
+            isWithinTermDates = todayMidnight >= termStart && todayMidnight <= termEnd;
+          }
+        }
+
+        // Determine if it's a valid school day
+        const isValidSchoolDay = isWeekday && (isWithinTermDates || !currentTerm);
+        setIsSchoolDay(isValidSchoolDay);
+
+        // Set appropriate message
+        if (!isWeekday) {
+          const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+          setSchoolDayMessage(`Today is ${dayNames[dayOfWeek]}. Attendance can only be marked Monday through Friday.`);
+        } else if (currentTerm && !isWithinTermDates) {
+          setSchoolDayMessage(`Today is outside the active term dates (${currentTerm.name}: ${currentTerm.startDate?.toDate().toLocaleDateString()} - ${currentTerm.endDate?.toDate().toLocaleDateString()}).`);
+        } else if (!currentTerm) {
+          setSchoolDayMessage('No active term found. Please create and activate a term first.');
+        }
+
         // Load all classes (filter for active in-memory if needed)
         const classesQuery = query(
           collection(db, 'classes'),
@@ -259,11 +310,30 @@ export default function AttendanceDashboard() {
           <h1 className="text-2xl font-bold text-gray-900">Attendance Management</h1>
           <p className="text-gray-600 mt-1">Track and monitor student attendance</p>
         </div>
-        <Button onClick={() => router.push('/dashboard/attendance/mark')}>
+        <Button
+          onClick={() => router.push('/dashboard/attendance/mark')}
+          disabled={!isSchoolDay}
+          title={!isSchoolDay ? schoolDayMessage : 'Mark attendance for today'}
+        >
           <PlusIcon className="h-5 w-5 mr-2" />
           Mark Attendance
         </Button>
       </div>
+
+      {/* School Day Alert */}
+      {!isSchoolDay && schoolDayMessage && (
+        <Card className="border-l-4 border-blue-500 bg-blue-50">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-3">
+              <CalendarIcon className="h-6 w-6 text-blue-600" />
+              <div>
+                <p className="text-sm font-medium text-blue-900">Not a School Day</p>
+                <p className="text-sm text-blue-700 mt-1">{schoolDayMessage}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Alerts */}
       {alerts.length > 0 && (
@@ -419,6 +489,8 @@ export default function AttendanceDashboard() {
                         size="sm"
                         className="flex-1"
                         onClick={() => router.push(`/dashboard/attendance/mark?classId=${cls.id}`)}
+                        disabled={!isSchoolDay}
+                        title={!isSchoolDay ? 'Attendance can only be marked on school days' : 'Mark attendance for today'}
                       >
                         Mark Today
                       </Button>
@@ -450,6 +522,7 @@ export default function AttendanceDashboard() {
               variant="outline"
               className="h-20 flex flex-col items-center justify-center"
               onClick={() => router.push('/dashboard/attendance/mark')}
+              disabled={!isSchoolDay}
             >
               <CalendarIcon className="h-6 w-6 mb-2" />
               Mark Attendance

@@ -71,6 +71,71 @@ export default function MarkAttendancePage() {
   const [period, setPeriod] = useState<AttendancePeriod>(AttendancePeriod.FULL_DAY);
   const [attendance, setAttendance] = useState<Map<string, AttendanceEntry>>(new Map());
   const [existingAttendance, setExistingAttendance] = useState<Map<string, any>>(new Map());
+  const [isValidDate, setIsValidDate] = useState(true);
+  const [dateMessage, setDateMessage] = useState('');
+  const [activeTerm, setActiveTerm] = useState<any>(null);
+
+  // Validate selected date (must be Mon-Fri within term)
+  useEffect(() => {
+    const validateDate = async () => {
+      if (!user?.tenantId || !selectedDate) return;
+
+      try {
+        const checkDate = new Date(selectedDate);
+        const dayOfWeek = checkDate.getDay();
+        const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
+
+        // Load active term if not already loaded
+        if (!activeTerm) {
+          const termsQuery = query(
+            collection(db, 'terms'),
+            where('tenantId', '==', user.tenantId),
+            where('isActive', '==', true)
+          );
+          const termsSnapshot = await getDocs(termsQuery);
+
+          if (!termsSnapshot.empty) {
+            const term = {
+              id: termsSnapshot.docs[0].id,
+              ...termsSnapshot.docs[0].data(),
+            };
+            setActiveTerm(term);
+          }
+        }
+
+        // Check if within term dates
+        let isWithinTermDates = false;
+        if (activeTerm) {
+          const termStart = activeTerm.startDate?.toDate();
+          const termEnd = activeTerm.endDate?.toDate();
+
+          if (termStart && termEnd) {
+            const checkMidnight = new Date(checkDate);
+            checkMidnight.setHours(0, 0, 0, 0);
+            isWithinTermDates = checkMidnight >= termStart && checkMidnight <= termEnd;
+          }
+        }
+
+        const isValid = isWeekday && (isWithinTermDates || !activeTerm);
+        setIsValidDate(isValid);
+
+        if (!isWeekday) {
+          const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+          setDateMessage(`${dayNames[dayOfWeek]} is not a school day. Please select Monday through Friday.`);
+        } else if (activeTerm && !isWithinTermDates) {
+          setDateMessage(`Selected date is outside the active term (${activeTerm.name}: ${activeTerm.startDate?.toDate().toLocaleDateString()} - ${activeTerm.endDate?.toDate().toLocaleDateString()}).`);
+        } else if (!activeTerm) {
+          setDateMessage('');
+        } else {
+          setDateMessage('');
+        }
+      } catch (error) {
+        console.error('Error validating date:', error);
+      }
+    };
+
+    validateDate();
+  }, [selectedDate, user?.tenantId, activeTerm]);
 
   // Load classes
   useEffect(() => {
@@ -336,6 +401,21 @@ export default function MarkAttendancePage() {
         </Button>
       </div>
 
+      {/* Date Validation Alert */}
+      {!isValidDate && dateMessage && (
+        <Card className="border-l-4 border-yellow-500 bg-yellow-50">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-3">
+              <CalendarIcon className="h-6 w-6 text-yellow-600" />
+              <div>
+                <p className="text-sm font-medium text-yellow-900">Invalid Date Selected</p>
+                <p className="text-sm text-yellow-700 mt-1">{dateMessage}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Controls */}
       <Card>
         <CardContent className="pt-6">
@@ -548,8 +628,9 @@ export default function MarkAttendancePage() {
         <div className="flex gap-3">
           <Button
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || !isValidDate}
             className="flex-1"
+            title={!isValidDate ? 'Cannot save attendance for non-school days' : ''}
           >
             {saving ? 'Saving...' : existingAttendance.size > 0 ? 'Update Attendance' : 'Save Attendance'}
           </Button>
