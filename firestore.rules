@@ -173,6 +173,16 @@ service cloud.firestore {
                        resource.data.tenantId == getUserTenant();
     }
 
+    // Skill Ratings: Teachers and admins can manage
+    match /skillRatings/{ratingId} {
+      allow read: if request.auth != null &&
+                     resource.data.tenantId == getUserTenant();
+      allow create, update: if isTeacher() &&
+                               request.resource.data.tenantId == getUserTenant();
+      allow delete: if isAdmin() &&
+                       resource.data.tenantId == getUserTenant();
+    }
+
     // Audit Logs: Anyone can create (log their actions), only admins can read
     match /auditLogs/{logId} {
       allow read: if isAdmin() &&
