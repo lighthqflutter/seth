@@ -1,13 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase/client';
+import { db, storage } from '@/lib/firebase/client';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { CloudArrowUpIcon, TrashIcon } from '@heroicons/react/24/outline';
 
 interface SchoolProfile {
   name: string;
@@ -26,6 +28,8 @@ export default function SchoolProfilePage() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [profile, setProfile] = useState<SchoolProfile>({
     name: '',
     address: '',
@@ -65,6 +69,83 @@ export default function SchoolProfilePage() {
     } catch (error) {
       console.error('Error loading profile:', error);
       setLoading(false);
+    }
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user?.tenantId) return;
+
+    // Validate file type
+    const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      alert('Please upload a valid image file (PNG, JPG, SVG, or WebP)');
+      return;
+    }
+
+    // Validate file size (500KB = 512000 bytes)
+    const maxSize = 500 * 1024; // 500KB
+    if (file.size > maxSize) {
+      alert(`Logo file size must be less than 500KB. Your file is ${(file.size / 1024).toFixed(0)}KB.`);
+      return;
+    }
+
+    setUploading(true);
+    try {
+      // Create a reference to the storage location
+      const fileExtension = file.name.split('.').pop();
+      const fileName = `logos/${user.tenantId}/school-logo.${fileExtension}`;
+      const storageRef = ref(storage, fileName);
+
+      // Upload the file
+      await uploadBytes(storageRef, file);
+
+      // Get the download URL
+      const downloadURL = await getDownloadURL(storageRef);
+
+      // Update the profile with the new logo URL
+      setProfile({ ...profile, logoUrl: downloadURL });
+      alert('Logo uploaded successfully!');
+    } catch (error) {
+      console.error('Error uploading logo:', error);
+      alert('Failed to upload logo. Please try again.');
+    } finally {
+      setUploading(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleDeleteLogo = async () => {
+    if (!user?.tenantId || !profile.logoUrl) return;
+
+    if (!confirm('Are you sure you want to delete the logo?')) return;
+
+    try {
+      // Only try to delete from storage if it's a Firebase Storage URL
+      if (profile.logoUrl.includes('firebasestorage.googleapis.com')) {
+        const fileName = `logos/${user.tenantId}/school-logo`;
+        // Try to delete all possible extensions
+        const extensions = ['png', 'jpg', 'jpeg', 'svg', 'webp'];
+        for (const ext of extensions) {
+          try {
+            const storageRef = ref(storage, `${fileName}.${ext}`);
+            await deleteObject(storageRef);
+          } catch (e) {
+            // Ignore errors - file might not exist with this extension
+          }
+        }
+      }
+
+      // Clear the logo URL
+      setProfile({ ...profile, logoUrl: '' });
+      alert('Logo deleted successfully!');
+    } catch (error) {
+      console.error('Error deleting logo:', error);
+      // Still clear the URL even if deletion from storage failed
+      setProfile({ ...profile, logoUrl: '' });
     }
   };
 
@@ -199,56 +280,94 @@ export default function SchoolProfilePage() {
             <CardTitle>Branding & Logo</CardTitle>
             <CardDescription>Customize your school's visual identity</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-6">
+            {/* File Upload Section */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Logo URL
+                Upload Logo File
+              </label>
+              <div className="flex items-center gap-3">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg,image/svg+xml,image/webp"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  id="logo-upload"
+                />
+                <label
+                  htmlFor="logo-upload"
+                  className={`flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors ${
+                    uploading ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                >
+                  <CloudArrowUpIcon className="h-5 w-5 text-gray-600" />
+                  <span className="text-sm font-medium text-gray-700">
+                    {uploading ? 'Uploading...' : 'Choose File'}
+                  </span>
+                </label>
+                {profile.logoUrl && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDeleteLogo}
+                    className="text-red-600 hover:text-red-700"
+                  >
+                    <TrashIcon className="h-4 w-4 mr-1" />
+                    Remove
+                  </Button>
+                )}
+              </div>
+              <p className="mt-2 text-xs text-gray-500">
+                Max file size: 500KB. Supported formats: PNG, JPG, SVG, WebP
+              </p>
+            </div>
+
+            {/* Logo Preview */}
+            {profile.logoUrl && (
+              <div>
+                <p className="text-sm text-gray-600 mb-2">Logo Preview:</p>
+                <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                  <img
+                    src={profile.logoUrl}
+                    alt="School Logo"
+                    className="h-20 w-auto object-contain"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                      const errorMsg = e.currentTarget.nextElementSibling as HTMLElement;
+                      if (errorMsg) errorMsg.style.display = 'block';
+                    }}
+                  />
+                  <p className="text-sm text-red-600 mt-2" style={{ display: 'none' }}>
+                    ❌ Failed to load logo
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Divider */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-200"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white text-gray-500">OR</span>
+              </div>
+            </div>
+
+            {/* URL Input (Alternative) */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Logo URL (Alternative)
               </label>
               <Input
                 value={profile.logoUrl}
                 onChange={(e) => setProfile({ ...profile, logoUrl: e.target.value })}
                 placeholder="e.g., https://example.com/logo.png"
               />
-              <p className="mt-1 text-sm text-gray-500">
-                Upload your logo to a service like Imgur or Cloudinary and paste the URL here
+              <p className="mt-1 text-xs text-gray-500">
+                Or paste a direct link to your logo image
               </p>
-              {profile.logoUrl && (
-                <div className="mt-3">
-                  <p className="text-sm text-gray-600 mb-2">Logo Preview:</p>
-                  <div className="border border-gray-200 rounded p-4 bg-gray-50">
-                    <img
-                      src={profile.logoUrl}
-                      alt="School Logo"
-                      className="h-16 w-auto object-contain"
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                        const errorMsg = e.currentTarget.nextElementSibling as HTMLElement;
-                        if (errorMsg) errorMsg.style.display = 'block';
-                      }}
-                    />
-                    <p className="text-sm text-red-600 mt-2" style={{ display: 'none' }}>
-                      ❌ Failed to load logo. Make sure the URL points to an image file (e.g., https://example.com/logo.png)
-                    </p>
-                  </div>
-                  <p className="mt-2 text-xs text-gray-500">
-                    💡 Tip: The URL must point directly to an image file, not a website homepage.
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-sm text-blue-800 mb-2">
-                <strong>Note:</strong> Direct file upload is coming soon. For now, upload your logo to an image hosting service and paste the URL above.
-              </p>
-              <p className="text-sm text-blue-800">
-                <strong>How to get image URL:</strong>
-              </p>
-              <ul className="text-xs text-blue-700 mt-1 ml-4 list-disc space-y-1">
-                <li>Upload to <a href="https://imgur.com/upload" target="_blank" rel="noopener" className="underline">Imgur</a>, right-click image → Copy Image Address</li>
-                <li>Or upload to <a href="https://cloudinary.com" target="_blank" rel="noopener" className="underline">Cloudinary</a> and copy the image URL</li>
-                <li>URL should end with .png, .jpg, .svg, or .webp</li>
-              </ul>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

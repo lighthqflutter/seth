@@ -520,18 +520,6 @@ export default function RecordPaymentPage() {
                       placeholder="e.g., GTBank, Access Bank"
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Account Number
-                    </label>
-                    <Input
-                      value={paymentData.accountNumber}
-                      onChange={(e) =>
-                        setPaymentData({ ...paymentData, accountNumber: e.target.value })
-                      }
-                      placeholder="10-digit account number"
-                    />
-                  </div>
                 </>
               )}
 
