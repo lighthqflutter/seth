@@ -27,6 +27,7 @@ import {
   UsersIcon,
   DocumentTextIcon,
   CogIcon,
+  DocumentPlusIcon,
 } from '@heroicons/react/24/outline';
 import { StudentFee, Payment, FeeStatistics } from '@/types/fees';
 import { calculatePaymentSummary, formatCurrency } from '@/lib/feeHelpers';
@@ -485,7 +486,7 @@ export default function FeesPage() {
           <CardTitle>Quick Actions</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <Button
               variant="outline"
               className="h-auto py-6 flex-col"
@@ -493,6 +494,14 @@ export default function FeesPage() {
             >
               <CurrencyDollarIcon className="h-8 w-8 mb-2" />
               <span>Fee Structure</span>
+            </Button>
+            <Button
+              variant="outline"
+              className="h-auto py-6 flex-col"
+              onClick={() => router.push('/dashboard/fees/assign')}
+            >
+              <DocumentPlusIcon className="h-8 w-8 mb-2" />
+              <span>Assign Fees</span>
             </Button>
             <Button
               variant="outline"
