@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
 
     // Send email to admin
     await transporter.sendMail({
-      from: `"SETH Portal" <${process.env.SMTP_USER || 'notify@seth.com.ng'}>`,
+      from: `"SETH Portal" <${process.env.SMTP_USER || 'notify@seth.ng'}>`,
       to: 'hello@seth.ng',
       subject: `New School Inquiry: ${schoolName}`,
       html: adminEmailContent,
@@ -151,7 +151,7 @@ export async function POST(request: NextRequest) {
 
     // Send confirmation email to customer
     await transporter.sendMail({
-      from: `"SETH Portal" <${process.env.SMTP_USER || 'notify@seth.com.ng'}>`,
+      from: `"SETH Portal" <${process.env.SMTP_USER || 'notify@seth.ng'}>`,
       to: email,
       subject: 'Thank you for your inquiry - SETH School Portal',
       html: customerEmailContent,
