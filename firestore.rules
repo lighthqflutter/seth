@@ -96,6 +96,14 @@ service cloud.firestore {
                       request.resource.data.tenantId == getUserTenant();
     }
 
+    // Score Configurations: Admins can manage, everyone can read
+    match /scoreConfigurations/{configId} {
+      allow read: if request.auth != null &&
+                     resource.data.tenantId == getUserTenant();
+      allow write: if isAdmin() &&
+                      request.resource.data.tenantId == getUserTenant();
+    }
+
     // Audit Logs: Anyone can create (log their actions), only admins can read
     match /auditLogs/{logId} {
       allow read: if isAdmin() &&

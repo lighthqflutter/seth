@@ -41,9 +41,12 @@ export default function ScoreEntryPage() {
   const [scores, setScores] = useState<Map<string, StudentScore>>(new Map());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [configurations, setConfigurations] = useState<any[]>([]);
+  const [selectedConfigId, setSelectedConfigId] = useState<string>('');
+  const [loadingConfigs, setLoadingConfigs] = useState(true);
 
-  // Mock assessment config - in real app, fetch from tenant settings
-  const assessmentConfig: AssessmentConfig = {
+  // Default assessment config
+  const defaultAssessmentConfig: AssessmentConfig = {
     numberOfCAs: 3,
     caConfigs: [
       { name: 'CA1', maxScore: 10, isOptional: false },
@@ -55,6 +58,9 @@ export default function ScoreEntryPage() {
     calculationMethod: 'sum',
     totalMaxScore: 100,
   };
+
+  // Active assessment config based on selection
+  const [assessmentConfig, setAssessmentConfig] = useState<AssessmentConfig>(defaultAssessmentConfig);
 
   const gradingConfig: GradingConfig = {
     system: 'letter',
@@ -77,6 +83,42 @@ export default function ScoreEntryPage() {
     },
   };
 
+  // Load configurations
+  useEffect(() => {
+    const loadConfigurations = async () => {
+      if (!user?.tenantId) return;
+
+      try {
+        const configurationsQuery = query(
+          collection(db, 'scoreConfigurations'),
+          where('tenantId', '==', user.tenantId),
+          where('isActive', '==', true)
+        );
+        const snapshot = await getDocs(configurationsQuery);
+        const configsData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setConfigurations(configsData);
+
+        // Auto-select first active config or use default
+        if (configsData.length > 0) {
+          const firstConfig = configsData[0];
+          setSelectedConfigId(firstConfig.id);
+          setAssessmentConfig(firstConfig.assessmentConfig);
+        }
+
+        setLoadingConfigs(false);
+      } catch (error) {
+        console.error('Error loading configurations:', error);
+        setLoadingConfigs(false);
+      }
+    };
+
+    loadConfigurations();
+  }, [user?.tenantId]);
+
+  // Load students
   useEffect(() => {
     const loadStudents = async () => {
       if (!user?.tenantId || !classId) return;
@@ -117,6 +159,31 @@ export default function ScoreEntryPage() {
 
     loadStudents();
   }, [user?.tenantId, classId]);
+
+  // Handle configuration change
+  const handleConfigurationChange = (configId: string) => {
+    setSelectedConfigId(configId);
+
+    if (configId === 'default') {
+      setAssessmentConfig(defaultAssessmentConfig);
+    } else {
+      const selected = configurations.find(c => c.id === configId);
+      if (selected) {
+        setAssessmentConfig(selected.assessmentConfig);
+      }
+    }
+
+    // Reset scores when changing configuration
+    const scoresMap = new Map<string, StudentScore>();
+    students.forEach(student => {
+      scoresMap.set(student.id, {
+        studentId: student.id,
+        assessmentScores: {},
+        isAbsent: false,
+      });
+    });
+    setScores(scoresMap);
+  };
 
   const handleScoreChange = (studentId: string, assessmentKey: string, value: string) => {
     const scoresMap = new Map(scores);
@@ -166,6 +233,165 @@ export default function ScoreEntryPage() {
 
     scoresMap.set(studentId, studentScore);
     setScores(scoresMap);
+  };
+
+  // CSV Template Download
+  const handleDownloadTemplate = () => {
+    // Create CSV header based on current configuration
+    const headers = [
+      'Student Name',
+      'Admission Number',
+      ...assessmentConfig.caConfigs.map(ca => ca.name),
+    ];
+
+    if (assessmentConfig.exam.enabled) {
+      headers.push(assessmentConfig.exam.name);
+    }
+
+    headers.push('Is Absent (Yes/No)');
+
+    // Add student rows
+    const rows = students.map(student => {
+      const row = [
+        `${student.firstName} ${student.lastName}`,
+        student.admissionNumber,
+        ...assessmentConfig.caConfigs.map(() => ''),
+      ];
+
+      if (assessmentConfig.exam.enabled) {
+        row.push('');
+      }
+
+      row.push('No');
+
+      return row;
+    });
+
+    // Combine headers and rows
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+
+    // Download file
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `score_template_${classId}_${subjectId}_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+
+  // CSV Import
+  const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const lines = text.split('\n').filter(line => line.trim());
+
+      if (lines.length < 2) {
+        alert('CSV file is empty or invalid');
+        return;
+      }
+
+      // Parse header
+      const headers = lines[0].split(',').map(h => h.trim());
+
+      // Validate headers match configuration
+      const expectedHeaders = [
+        'Student Name',
+        'Admission Number',
+        ...assessmentConfig.caConfigs.map(ca => ca.name),
+      ];
+
+      if (assessmentConfig.exam.enabled) {
+        expectedHeaders.push(assessmentConfig.exam.name);
+      }
+
+      expectedHeaders.push('Is Absent (Yes/No)');
+
+      const headersMatch = expectedHeaders.every((expected, index) => {
+        return headers[index] === expected;
+      });
+
+      if (!headersMatch) {
+        alert('CSV headers do not match the current configuration. Please download the latest template.');
+        return;
+      }
+
+      // Parse data rows
+      const scoresMap = new Map(scores);
+      let importCount = 0;
+      let errorCount = 0;
+
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',').map(v => v.trim());
+
+        if (values.length < expectedHeaders.length) continue;
+
+        const admissionNumber = values[1];
+        const student = students.find(s => s.admissionNumber === admissionNumber);
+
+        if (!student) {
+          console.warn(`Student not found: ${admissionNumber}`);
+          errorCount++;
+          continue;
+        }
+
+        const studentScore = scoresMap.get(student.id);
+        if (!studentScore) continue;
+
+        // Parse scores
+        let columnIndex = 2; // Start after name and admission number
+        const assessmentScores: { [key: string]: number | null } = {};
+
+        for (const ca of assessmentConfig.caConfigs) {
+          const key = ca.name.toLowerCase().replace(/\s+/g, '-');
+          const value = values[columnIndex];
+          assessmentScores[key] = value && value !== '' ? parseFloat(value) : null;
+          columnIndex++;
+        }
+
+        if (assessmentConfig.exam.enabled) {
+          const examValue = values[columnIndex];
+          assessmentScores['exam'] = examValue && examValue !== '' ? parseFloat(examValue) : null;
+          columnIndex++;
+        }
+
+        // Parse absent status
+        const isAbsent = values[columnIndex]?.toLowerCase() === 'yes';
+
+        studentScore.assessmentScores = assessmentScores;
+        studentScore.isAbsent = isAbsent;
+
+        // Validate and calculate
+        if (!isAbsent) {
+          const validation = validateScoreEntry({ assessmentScores }, assessmentConfig);
+          studentScore.errors = validation.errors;
+
+          if (validation.valid) {
+            const result = calculateTotalScore({ assessmentScores }, assessmentConfig);
+            studentScore.total = result.total;
+            studentScore.grade = calculateGrade(result.percentage, gradingConfig);
+          }
+        }
+
+        scoresMap.set(student.id, studentScore);
+        importCount++;
+      }
+
+      setScores(scoresMap);
+      alert(`Import complete! Successfully imported ${importCount} student records.${errorCount > 0 ? ` ${errorCount} errors.` : ''}`);
+    };
+
+    reader.readAsText(file);
+    event.target.value = ''; // Reset input
   };
 
   const handleSave = async (isDraft: boolean) => {
@@ -306,6 +532,46 @@ export default function ScoreEntryPage() {
         <p className="text-gray-600 mt-1">Enter scores for all students</p>
       </div>
 
+      {/* Configuration Selector */}
+      {!loadingConfigs && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-4">
+              <label className="text-sm font-medium text-gray-700 min-w-fit">
+                Score Configuration:
+              </label>
+              <select
+                className="flex-1 max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                value={selectedConfigId}
+                onChange={(e) => handleConfigurationChange(e.target.value)}
+              >
+                <option value="default">Default (CA1, CA2, CA3, Exam)</option>
+                {configurations.map((config) => (
+                  <option key={config.id} value={config.id}>
+                    {config.name} - Total: {config.assessmentConfig.totalMaxScore}
+                  </option>
+                ))}
+              </select>
+              {user?.role === 'admin' && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => router.push('/dashboard/scores/configurations')}
+                >
+                  Manage
+                </Button>
+              )}
+            </div>
+            <div className="mt-3 text-sm text-gray-600">
+              <strong>Components:</strong>{' '}
+              {assessmentConfig.caConfigs.map(ca => `${ca.name} (${ca.maxScore})`).join(', ')}
+              {assessmentConfig.exam.enabled && `, ${assessmentConfig.exam.name} (${assessmentConfig.exam.maxScore})`}
+              {' '}= Total: {assessmentConfig.totalMaxScore}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardContent className="pt-6">
           <div className="overflow-x-auto">
@@ -433,6 +699,39 @@ export default function ScoreEntryPage() {
               </ul>
             </div>
           )}
+
+          {/* CSV Import/Export Section */}
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <h3 className="text-sm font-medium text-gray-700 mb-3">Bulk Import/Export</h3>
+            <div className="flex gap-3 items-center">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDownloadTemplate}
+              >
+                Download CSV Template
+              </Button>
+              <div className="flex items-center gap-2">
+                <input
+                  id="csv-upload"
+                  type="file"
+                  accept=".csv"
+                  onChange={handleImportCSV}
+                  className="hidden"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => document.getElementById('csv-upload')?.click()}
+                >
+                  Import from CSV
+                </Button>
+              </div>
+              <span className="text-xs text-gray-500">
+                Download template, fill in scores, then import back
+              </span>
+            </div>
+          </div>
 
           <div className="mt-6 flex gap-3">
             <Button

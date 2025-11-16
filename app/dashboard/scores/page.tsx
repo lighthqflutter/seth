@@ -119,9 +119,19 @@ export default function ScoresPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Enter Scores</h1>
-        <p className="text-gray-600 mt-1">Select a class, subject, and term to enter scores</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Enter Scores</h1>
+          <p className="text-gray-600 mt-1">Select a class, subject, and term to enter scores</p>
+        </div>
+        {user?.role === 'admin' && (
+          <Button
+            variant="outline"
+            onClick={() => router.push('/dashboard/scores/configurations')}
+          >
+            Manage Configurations
+          </Button>
+        )}
       </div>
 
       <Card>
