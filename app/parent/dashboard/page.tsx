@@ -16,11 +16,12 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, orderBy, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { SubjectScore, calculateTermResult } from '@/lib/resultCalculation';
 import {
   AcademicCapIcon,
   UserIcon,
@@ -145,8 +146,84 @@ export default function ParentDashboard() {
               console.error('Error loading class:', err);
             }
 
-            // TODO: Load latest result when result collection is available
-            const latestResult: LatestResult | null = null;
+            // Load latest published result for this student
+            let latestResult: LatestResult | null = null;
+            try {
+              // Get the most recent term with published scores
+              const scoresQuery = query(
+                collection(db, 'scores'),
+                where('tenantId', '==', user.tenantId),
+                where('studentId', '==', student.id),
+                where('isPublished', '==', true)
+              );
+
+              const scoresSnapshot = await getDocs(scoresQuery);
+
+              if (!scoresSnapshot.empty) {
+                // Group scores by term to find the latest term
+                const scoresByTerm = new Map<string, any[]>();
+                scoresSnapshot.docs.forEach(doc => {
+                  const scoreData = doc.data();
+                  if (!scoresByTerm.has(scoreData.termId)) {
+                    scoresByTerm.set(scoreData.termId, []);
+                  }
+                  scoresByTerm.get(scoreData.termId)!.push(scoreData);
+                });
+
+                // Get the most recent term
+                const terms = await Promise.all(
+                  Array.from(scoresByTerm.keys()).map(async (termId) => {
+                    const termDoc = await getDoc(doc(db, 'terms', termId));
+                    if (termDoc.exists()) {
+                      return { id: termDoc.id, ...termDoc.data() } as any;
+                    }
+                    return null;
+                  })
+                );
+
+                const validTerms = terms.filter((t): t is any => t !== null);
+                if (validTerms.length > 0) {
+                  // Sort by start date to get the latest term
+                  validTerms.sort((a: any, b: any) => {
+                    const dateA = a.startDate?.toDate?.() || new Date(0);
+                    const dateB = b.startDate?.toDate?.() || new Date(0);
+                    return dateB.getTime() - dateA.getTime();
+                  });
+
+                  const latestTerm = validTerms[0];
+                  const termScores = scoresByTerm.get(latestTerm.id) || [];
+
+                  // Calculate result
+                  const subjectScores: SubjectScore[] = termScores.map(score => ({
+                    subjectId: score.subjectId,
+                    subjectName: '',
+                    total: score.total || 0,
+                    percentage: score.percentage || 0,
+                    grade: score.grade || 'F9',
+                    maxScore: 100,
+                    isAbsent: score.isAbsent || false,
+                    isExempted: score.isExempted || false,
+                  }));
+
+                  const termResult = calculateTermResult(subjectScores, { passMark: 40 });
+
+                  // Get class position if available
+                  let position: number | undefined = undefined;
+                  if (termScores[0]?.position) {
+                    position = termScores[0].position;
+                  }
+
+                  latestResult = {
+                    termName: latestTerm.name,
+                    averageScore: termResult.averageScore,
+                    position: position,
+                    totalSubjects: termResult.numberOfSubjects,
+                  };
+                }
+              }
+            } catch (err) {
+              console.error('Error loading latest result:', err);
+            }
 
             return {
               student,

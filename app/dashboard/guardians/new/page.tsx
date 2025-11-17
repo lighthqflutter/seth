@@ -16,10 +16,11 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { collection, query, where, getDocs, addDoc, serverTimestamp, writeBatch, doc } from 'firebase/firestore';
+import { collection, query, where, getDocs, getDoc, serverTimestamp, writeBatch, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { logAudit } from '@/lib/auditLog';
+import { logAudit } from '@/lib/auditLogger';
+import { Tenant } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -192,18 +193,52 @@ export default function NewGuardianPage() {
     setSaving(true);
 
     try {
-      // Create guardian user account
-      const guardianData = {
-        ...formData,
-        role: 'parent',
-        tenantId: user.tenantId,
-        isActive: true,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      };
+      // Get school information for invitation email
+      const tenantDoc = await getDoc(doc(db, 'tenants', user.tenantId));
+      if (!tenantDoc.exists()) {
+        setErrors({ submit: 'School information not found' });
+        setSaving(false);
+        return;
+      }
 
-      const guardianRef = await addDoc(collection(db, 'users'), guardianData);
-      const guardianId = guardianRef.id;
+      const tenant = tenantDoc.data() as Tenant;
+      const schoolUrl = `https://${tenant.subdomain}.seth.ng`;
+
+      // Create guardian user via API (creates Firebase Auth account + sends invitation)
+      const response = await fetch('/api/users/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name.trim(),
+          email: formData.email.toLowerCase().trim(),
+          phone: formData.phone.trim(),
+          role: 'parent',
+          tenantId: user.tenantId,
+          schoolName: tenant.name,
+          schoolUrl: schoolUrl,
+          sendInvitation: true,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create guardian');
+      }
+
+      const guardianId = data.user.uid;
+
+      // Update user document with additional guardian fields
+      await updateDoc(doc(db, 'users', guardianId), {
+        phone2: formData.phone2 || null,
+        address: formData.address || null,
+        occupation: formData.occupation || null,
+        relationshipType: formData.relationshipType,
+        isPrimary: formData.isPrimary,
+        isEmergencyContact: formData.isEmergencyContact,
+        contactPreferences: formData.contactPreferences,
+        updatedAt: new Date(),
+      });
 
       // Update students' guardianIds arrays
       const batch = writeBatch(db);
@@ -240,11 +275,13 @@ export default function NewGuardianPage() {
         },
       });
 
+      alert(`Guardian created successfully! Invitation email sent to ${formData.email}`);
+
       // Redirect to guardians list
       router.push('/dashboard/guardians');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating guardian:', error);
-      setErrors({ submit: 'Failed to create guardian. Please try again.' });
+      setErrors({ submit: error.message || 'Failed to create guardian. Please try again.' });
       setSaving(false);
     }
   };
