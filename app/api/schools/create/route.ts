@@ -89,19 +89,49 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date(),
     });
 
-    // Step 6: Add domain to Vercel (non-blocking)
-    // This runs in the background and doesn't block the response
-    addDomainToVercel(subdomain)
+    // Step 6: Send welcome email to school admin (non-blocking)
+    const schoolUrl = `https://${subdomain}.seth.ng`;
+    fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://seth.ng'}/api/users/send-invitation`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: admin.email,
+        name: admin.name,
+        role: 'admin',
+        password: admin.password,
+        schoolName: school.name,
+        schoolUrl: schoolUrl,
+      }),
+    })
+      .then((res) => res.json())
       .then((result) => {
         if (result.success) {
-          console.log(`Domain ${result.domain} added to Vercel successfully`);
+          console.log(`Welcome email sent to ${admin.email}`);
         } else {
-          console.warn(`Failed to add domain to Vercel: ${result.error}`);
+          console.warn(`Failed to send welcome email: ${result.error}`);
         }
       })
       .catch((error) => {
-        console.error('Error in background domain addition:', error);
+        console.error('Error sending welcome email:', error);
       });
+
+    // Step 7: Add domain to Vercel (non-blocking, optional)
+    // Only runs if VERCEL_TOKEN is configured
+    if (process.env.VERCEL_TOKEN) {
+      addDomainToVercel(subdomain)
+        .then((result) => {
+          if (result.success) {
+            console.log(`Domain ${result.domain} added to Vercel successfully`);
+          } else {
+            console.warn(`Failed to add domain to Vercel: ${result.error}`);
+          }
+        })
+        .catch((error) => {
+          console.error('Error in background domain addition:', error);
+        });
+    } else {
+      console.log('Vercel token not configured, skipping domain addition (using Cloudflare wildcard SSL)');
+    }
 
     console.log('School created successfully:', {
       tenantId,
