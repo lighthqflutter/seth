@@ -14,7 +14,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { collection, addDoc, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -177,19 +177,38 @@ export default function NewUserPage() {
         }
       }
 
-      // Create user
-      const userData = {
-        name: formData.name.trim(),
-        email: formData.email.toLowerCase().trim(),
-        phone: formData.phone.trim() || undefined,
-        role: formData.role,
-        isActive: formData.isActive,
-        tenantId: user.tenantId,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
+      // Get school information for invitation email
+      const tenantDoc = await getDoc(doc(db, 'tenants', user.tenantId));
+      if (!tenantDoc.exists()) {
+        setError('School information not found');
+        setSaving(false);
+        return;
+      }
 
-      const docRef = await addDoc(collection(db, 'users'), userData);
+      const tenant = tenantDoc.data() as Tenant;
+      const schoolUrl = `https://${tenant.subdomain}.seth.ng`;
+
+      // Create user via API (creates Firebase Auth account + sends invitation)
+      const response = await fetch('/api/users/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name.trim(),
+          email: formData.email.toLowerCase().trim(),
+          phone: formData.phone.trim() || undefined,
+          role: formData.role,
+          tenantId: user.tenantId,
+          schoolName: tenant.name,
+          schoolUrl: schoolUrl,
+          sendInvitation: true,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create user');
+      }
 
       // Audit log: User created
       await logAudit({
@@ -202,7 +221,7 @@ export default function NewUserPage() {
         },
         action: 'create',
         entityType: 'user',
-        entityId: docRef.id,
+        entityId: data.user.uid,
         entityName: formData.name.trim(),
         after: {
           name: formData.name.trim(),
@@ -215,7 +234,7 @@ export default function NewUserPage() {
         },
       });
 
-      alert('User created successfully!');
+      alert(`User created successfully! Invitation email sent to ${formData.email}`);
       router.push('/dashboard/admin/users');
     } catch (error: any) {
       console.error('Error creating user:', error);
