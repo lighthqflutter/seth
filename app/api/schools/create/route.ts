@@ -91,7 +91,17 @@ export async function POST(request: NextRequest) {
 
     // Step 6: Send welcome email to school admin (non-blocking)
     const schoolUrl = `https://${subdomain}.seth.ng`;
-    fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://seth.ng'}/api/users/send-invitation`, {
+
+    // Get the base URL from the request or environment
+    const baseUrl = request.headers.get('host')
+      ? `${request.headers.get('x-forwarded-proto') || 'https'}://${request.headers.get('host')}`
+      : (process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
+          ? `https://${process.env.VERCEL_URL}`
+          : 'https://seth.ng');
+
+    console.log(`Sending invitation email to ${admin.email} from ${baseUrl}`);
+
+    fetch(`${baseUrl}/api/users/send-invitation`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -106,13 +116,13 @@ export async function POST(request: NextRequest) {
       .then((res) => res.json())
       .then((result) => {
         if (result.success) {
-          console.log(`Welcome email sent to ${admin.email}`);
+          console.log(`Welcome email sent successfully to ${admin.email}`);
         } else {
-          console.warn(`Failed to send welcome email: ${result.error}`);
+          console.error(`Failed to send welcome email to ${admin.email}: ${result.error}`);
         }
       })
       .catch((error) => {
-        console.error('Error sending welcome email:', error);
+        console.error(`Error sending welcome email to ${admin.email}:`, error);
       });
 
     // Step 7: Add domain to Vercel (non-blocking, optional)
