@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase/admin';
+import { addDomainToVercel } from '@/lib/vercelDomains';
 
 export async function POST(request: NextRequest) {
   try {
@@ -87,6 +88,20 @@ export async function POST(request: NextRequest) {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
+
+    // Step 6: Add domain to Vercel (non-blocking)
+    // This runs in the background and doesn't block the response
+    addDomainToVercel(subdomain)
+      .then((result) => {
+        if (result.success) {
+          console.log(`Domain ${result.domain} added to Vercel successfully`);
+        } else {
+          console.warn(`Failed to add domain to Vercel: ${result.error}`);
+        }
+      })
+      .catch((error) => {
+        console.error('Error in background domain addition:', error);
+      });
 
     console.log('School created successfully:', {
       tenantId,
