@@ -291,6 +291,8 @@ export interface User {
   phone?: string;
   photoUrl?: string;
   isActive: boolean;
+  mustChangePassword?: boolean; // Force password change on first login
+  lastPasswordChange?: Timestamp; // Track password change history
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

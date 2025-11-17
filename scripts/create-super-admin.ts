@@ -52,7 +52,7 @@ if (!getApps().length) {
 const auth = getAuth();
 const db = getFirestore();
 
-const SUPER_ADMIN_EMAIL = 'support@lighthousemultimedia.net';
+const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL || 'support@lighthousemultimedia.net';
 const SUPER_ADMIN_NAME = 'Super Administrator';
 const SUPER_ADMIN_TENANT_ID = 'SUPER_ADMIN';
 

@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { addDoc, collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -33,6 +33,29 @@ export default function NewTeacherPage() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [schoolInfo, setSchoolInfo] = useState<{name: string, subdomain: string} | null>(null);
+
+  // Load school information
+  useEffect(() => {
+    const loadSchoolInfo = async () => {
+      if (!user?.tenantId) return;
+
+      try {
+        const tenantDoc = await getDoc(doc(db, 'tenants', user.tenantId));
+        if (tenantDoc.exists()) {
+          const tenant = tenantDoc.data() as Tenant;
+          setSchoolInfo({
+            name: tenant.name,
+            subdomain: tenant.subdomain,
+          });
+        }
+      } catch (error) {
+        console.error('Error loading school info:', error);
+      }
+    };
+
+    loadSchoolInfo();
+  }, [user]);
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -107,22 +130,35 @@ export default function NewTeacherPage() {
         return;
       }
 
-      const teacherData: any = {
-        name: formData.name.trim(),
-        email: formData.email.trim(),
-        role: 'teacher',
-        isActive: true,
-        tenantId: user.tenantId,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      // Only add phone if it's provided
-      if (formData.phone.trim()) {
-        teacherData.phone = formData.phone.trim();
+      if (!schoolInfo) {
+        setSaveError('School information not loaded');
+        setSaving(false);
+        return;
       }
 
-      await addDoc(collection(db, 'users'), teacherData);
+      // Call API to create user and send invitation
+      const response = await fetch('/api/users/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name.trim(),
+          email: formData.email.trim(),
+          phone: formData.phone.trim() || undefined,
+          role: 'teacher',
+          tenantId: user.tenantId,
+          schoolName: schoolInfo.name,
+          schoolUrl: `https://${schoolInfo.subdomain}.seth.ng`,
+          sendInvitation: true,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create teacher');
+      }
+
+      alert(`Teacher created successfully! Invitation email sent to ${formData.email}`);
       router.push('/dashboard/teachers');
     } catch (error) {
       console.error('Error creating teacher:', error);
