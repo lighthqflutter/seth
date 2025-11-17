@@ -37,6 +37,7 @@ service cloud.firestore {
       allow read: if request.auth.uid == userId ||
                      (request.auth != null && !isSuperAdmin() && resource.data.tenantId == getUserTenant());
       allow update: if request.auth.uid == userId;
+      allow update: if isAdmin() && resource.data.tenantId == getUserTenant();
       allow create: if isAdmin() && request.resource.data.tenantId == getUserTenant();
       allow delete: if false; // Only via admin SDK
     }
