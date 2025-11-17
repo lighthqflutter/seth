@@ -268,9 +268,11 @@ export interface Tenant {
   plan: 'free' | 'basic' | 'premium';
   status: 'active' | 'trial' | 'suspended';
   maxStudents: number; // Student quota (pay-per-student)
-  maxTeachers: number;
+  maxTeachers: number; // Teacher quota (based on number of classes)
+  maxAdmins: number; // Admin quota (default: 3)
   currentStudentCount?: number; // Cached count for quick access
   currentTeacherCount?: number; // Cached count for quick access
+  currentAdminCount?: number; // Cached count for quick access
   trialEndsAt?: Timestamp;
   subscriptionEndsAt?: Timestamp;
   lastPaymentDate?: Timestamp; // Track payment history

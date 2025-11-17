@@ -14,7 +14,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { collection, addDoc, query, where, getDocs } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { logAudit } from '@/lib/auditLogger';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { Tenant } from '@/types';
 
 interface FormData {
   name: string;
@@ -113,6 +114,67 @@ export default function NewUserPage() {
         setError('A user with this email already exists');
         setSaving(false);
         return;
+      }
+
+      // Check quotas before creating user
+      if (formData.role === 'teacher' || formData.role === 'admin') {
+        // Get tenant document
+        const tenantDoc = await getDoc(doc(db, 'tenants', user.tenantId));
+        if (!tenantDoc.exists()) {
+          setError('School information not found');
+          setSaving(false);
+          return;
+        }
+
+        const tenant = tenantDoc.data() as Tenant;
+
+        if (formData.role === 'teacher') {
+          // Count existing teachers
+          const teachersQuery = query(
+            collection(db, 'users'),
+            where('tenantId', '==', user.tenantId),
+            where('role', '==', 'teacher')
+          );
+          const teachersSnapshot = await getDocs(teachersQuery);
+          const currentTeacherCount = teachersSnapshot.size;
+
+          // Count classes
+          const classesQuery = query(
+            collection(db, 'classes'),
+            where('tenantId', '==', user.tenantId)
+          );
+          const classesSnapshot = await getDocs(classesQuery);
+          const classCount = classesSnapshot.size;
+
+          // Teachers can only be 1 ahead of classes
+          if (currentTeacherCount >= classCount + 1) {
+            setError(
+              `Teacher quota reached. You have ${currentTeacherCount} teachers and ${classCount} classes. ` +
+              `Please create a class first and assign it a teacher before adding more teachers.`
+            );
+            setSaving(false);
+            return;
+          }
+        } else if (formData.role === 'admin') {
+          // Count existing admins
+          const adminsQuery = query(
+            collection(db, 'users'),
+            where('tenantId', '==', user.tenantId),
+            where('role', '==', 'admin')
+          );
+          const adminsSnapshot = await getDocs(adminsQuery);
+          const currentAdminCount = adminsSnapshot.size;
+
+          // Check against maxAdmins quota
+          if (currentAdminCount >= tenant.maxAdmins) {
+            setError(
+              `School Admin quota reached. Your school is limited to ${tenant.maxAdmins} administrators. ` +
+              `You currently have ${currentAdminCount} admins.`
+            );
+            setSaving(false);
+            return;
+          }
+        }
       }
 
       // Create user

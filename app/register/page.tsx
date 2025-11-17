@@ -45,7 +45,8 @@ export default function RegisterPage() {
   // Step 3: Subdomain & Quota
   const [subdomain, setSubdomain] = useState('');
   const [subdomainAvailable, setSubdomainAvailable] = useState<boolean | null>(null);
-  const [maxStudents, setMaxStudents] = useState(50); // Default quota
+  const [maxStudents, setMaxStudents] = useState(50); // Default student quota
+  const [maxAdmins, setMaxAdmins] = useState(3); // School Admin quota (fixed at 3)
 
   const handleStep1Next = (e: React.FormEvent) => {
     e.preventDefault();
@@ -131,7 +132,8 @@ export default function RegisterPage() {
             email: schoolEmail,
             phone: schoolPhone,
             address: schoolAddress,
-            maxStudents, // Set quota
+            maxStudents, // Set student quota
+            maxAdmins, // School Admin quota (fixed: 3)
           },
           admin: {
             name: adminName,
@@ -341,13 +343,13 @@ export default function RegisterPage() {
           </Card>
         )}
 
-        {/* Step 3: Subdomain & Quota */}
+        {/* Step 3: Subdomain & Quotas */}
         {currentStep === 3 && (
           <Card>
             <CardHeader>
-              <CardTitle>School URL & Student Quota</CardTitle>
+              <CardTitle>School URL & Quotas</CardTitle>
               <CardDescription>
-                Choose subdomain and set student limit
+                Choose subdomain and set student and school admin limits
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -411,14 +413,34 @@ export default function RegisterPage() {
                   </p>
                 </div>
 
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    School Admin Quota <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={maxAdmins}
+                    onChange={(e) => setMaxAdmins(parseInt(e.target.value) || 3)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Maximum number of school administrators (recommended: 3)
+                  </p>
+                </div>
+
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <p className="text-sm font-medium text-blue-900 mb-2">School URL will be:</p>
                   <p className="text-lg font-semibold text-blue-600">
                     https://{subdomain || 'yourschool'}.seth.ng
                   </p>
-                  <p className="text-sm text-blue-800 mt-2">
-                    Quota: <strong>{maxStudents}</strong> students
-                  </p>
+                  <div className="mt-3 space-y-1 text-sm text-blue-800">
+                    <p>• <strong>{maxStudents}</strong> students</p>
+                    <p>• <strong>{maxAdmins}</strong> school admins</p>
+                    <p>• Teachers quota: <strong>Dynamic</strong> (based on number of classes)</p>
+                  </div>
                 </div>
 
                 <div className="flex gap-4">

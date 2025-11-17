@@ -2,12 +2,13 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { addDoc, collection } from 'firebase/firestore';
+import { addDoc, collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
+import { Tenant } from '@/types';
 
 interface FormData {
   name: string;
@@ -64,12 +65,54 @@ export default function NewTeacherPage() {
     setSaving(true);
 
     try {
+      if (!user) {
+        setSaveError('User not authenticated');
+        setSaving(false);
+        return;
+      }
+
+      // Check teacher quota before creating
+      // Get tenant document
+      const tenantDoc = await getDoc(doc(db, 'tenants', user.tenantId));
+      if (!tenantDoc.exists()) {
+        setSaveError('School information not found');
+        setSaving(false);
+        return;
+      }
+
+      // Count existing teachers
+      const teachersQuery = query(
+        collection(db, 'users'),
+        where('tenantId', '==', user.tenantId),
+        where('role', '==', 'teacher')
+      );
+      const teachersSnapshot = await getDocs(teachersQuery);
+      const currentTeacherCount = teachersSnapshot.size;
+
+      // Count classes
+      const classesQuery = query(
+        collection(db, 'classes'),
+        where('tenantId', '==', user.tenantId)
+      );
+      const classesSnapshot = await getDocs(classesQuery);
+      const classCount = classesSnapshot.size;
+
+      // Teachers can only be 1 ahead of classes
+      if (currentTeacherCount >= classCount + 1) {
+        setSaveError(
+          `Teacher quota reached. You have ${currentTeacherCount} teachers and ${classCount} classes. ` +
+          `Please create a class first and assign it a teacher before adding more teachers.`
+        );
+        setSaving(false);
+        return;
+      }
+
       const teacherData: any = {
         name: formData.name.trim(),
         email: formData.email.trim(),
         role: 'teacher',
         isActive: true,
-        tenantId: user?.tenantId,
+        tenantId: user.tenantId,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -98,6 +141,14 @@ export default function NewTeacherPage() {
       <Card>
         <CardContent className="pt-6">
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Info Box */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-sm text-blue-900">
+                <strong>Note:</strong> Teachers should be created first before creating their classes so they can be assigned during class creation.
+                You can only have 1 more teacher than the number of classes you've created.
+              </p>
+            </div>
+
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
                 Teacher Name *
