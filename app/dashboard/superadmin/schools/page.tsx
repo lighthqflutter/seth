@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { collection, query, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, getDocs, orderBy, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { useAuth } from '@/hooks/useAuth';
 import Link from 'next/link';
@@ -51,10 +51,44 @@ export default function SchoolsListPage() {
       );
 
       const snapshot = await getDocs(schoolsQuery);
-      const schoolsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as (Tenant & { id: string })[];
+      const schoolsData = await Promise.all(
+        snapshot.docs.map(async (doc) => {
+          const tenantId = doc.id;
+          const tenantData = doc.data() as Tenant;
+
+          // Count students for this tenant
+          const studentsQuery = query(
+            collection(db, 'students'),
+            where('tenantId', '==', tenantId)
+          );
+          const studentsSnapshot = await getDocs(studentsQuery);
+          const studentCount = studentsSnapshot.size;
+
+          // Count users by role
+          const usersQuery = query(
+            collection(db, 'users'),
+            where('tenantId', '==', tenantId)
+          );
+          const usersSnapshot = await getDocs(usersQuery);
+
+          let teacherCount = 0;
+          let adminCount = 0;
+
+          usersSnapshot.forEach((userDoc) => {
+            const userData = userDoc.data();
+            if (userData.role === 'teacher') teacherCount++;
+            if (userData.role === 'admin') adminCount++;
+          });
+
+          return {
+            ...tenantData,
+            id: tenantId,
+            currentStudentCount: studentCount,
+            currentTeacherCount: teacherCount,
+            currentAdminCount: adminCount,
+          };
+        })
+      );
 
       setSchools(schoolsData);
     } catch (err: any) {
@@ -204,7 +238,7 @@ export default function SchoolsListPage() {
                       </div>
 
                       {/* Stats */}
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-3 gap-2">
                         <div className="flex items-center gap-2">
                           <UserGroupIcon className="h-4 w-4 text-gray-400" />
                           <div className="text-sm">
@@ -221,6 +255,15 @@ export default function SchoolsListPage() {
                               {school.currentTeacherCount || 0}
                             </div>
                             <div className="text-xs text-gray-500">Teachers</div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <UserGroupIcon className="h-4 w-4 text-purple-400" />
+                          <div className="text-sm">
+                            <div className="font-medium text-gray-900">
+                              {school.currentAdminCount || 0}/{school.maxAdmins}
+                            </div>
+                            <div className="text-xs text-gray-500">Admins</div>
                           </div>
                         </div>
                       </div>
@@ -252,13 +295,15 @@ export default function SchoolsListPage() {
                         >
                           Visit
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex-1"
-                        >
-                          Manage
-                        </Button>
+                        <Link href={`/dashboard/superadmin/schools/${school.id}`}>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1"
+                          >
+                            Manage
+                          </Button>
+                        </Link>
                       </div>
                     </div>
                   </CardContent>
