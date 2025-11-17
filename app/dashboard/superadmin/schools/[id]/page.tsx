@@ -3,14 +3,14 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase/client';
+import { db, auth } from '@/lib/firebase/client';
 import { useAuth } from '@/hooks/useAuth';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Tenant } from '@/types';
-import { ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, TrashIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
 export default function ManageSchoolPage() {
   const router = useRouter();
@@ -21,6 +21,7 @@ export default function ManageSchoolPage() {
   const [school, setSchool] = useState<Tenant | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -29,6 +30,10 @@ export default function ManageSchoolPage() {
   const [maxAdmins, setMaxAdmins] = useState(3);
   const [status, setStatus] = useState<'active' | 'trial' | 'suspended'>('trial');
   const [plan, setPlan] = useState<'free' | 'basic' | 'premium'>('free');
+
+  // Delete confirmation state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
   // Check if user is super admin
   useEffect(() => {
@@ -90,6 +95,59 @@ export default function ManageSchoolPage() {
       setError('Failed to update school. Please try again.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeleteSchool = async () => {
+    if (!school) return;
+
+    // Verify confirmation text matches school name
+    if (deleteConfirmText.toLowerCase().trim() !== school.name.toLowerCase().trim()) {
+      setError('School name does not match. Please type the exact school name to confirm deletion.');
+      return;
+    }
+
+    setDeleting(true);
+    setError('');
+
+    try {
+      // Get the current user's ID token
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        setError('Not authenticated');
+        setDeleting(false);
+        return;
+      }
+
+      const token = await currentUser.getIdToken();
+
+      // Call delete API
+      const response = await fetch('/api/schools/delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          tenantId: schoolId,
+          confirmationText: deleteConfirmText,
+          schoolName: school.name,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete school');
+      }
+
+      // Show success and redirect
+      alert(`School "${school.name}" and all associated data has been permanently deleted.`);
+      router.push('/dashboard/superadmin/schools');
+    } catch (err: any) {
+      console.error('Error deleting school:', err);
+      setError(err.message || 'Failed to delete school. Please try again.');
+      setDeleting(false);
     }
   };
 
@@ -297,6 +355,94 @@ export default function ManageSchoolPage() {
             <Button variant="outline">Cancel</Button>
           </Link>
         </div>
+
+        {/* Danger Zone */}
+        <Card className="border-red-200 bg-red-50">
+          <CardHeader>
+            <CardTitle className="text-red-700 flex items-center gap-2">
+              <ExclamationTriangleIcon className="h-5 w-5" />
+              Danger Zone
+            </CardTitle>
+            <CardDescription className="text-red-600">
+              Permanent actions that cannot be undone
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!showDeleteConfirm ? (
+              <div>
+                <p className="text-sm text-red-700 mb-4">
+                  <strong>Warning:</strong> Deleting this school will permanently remove:
+                </p>
+                <ul className="text-sm text-red-700 space-y-1 mb-4 list-disc list-inside">
+                  <li>All users (admins, teachers, parents)</li>
+                  <li>All students and their records</li>
+                  <li>All classes and subjects</li>
+                  <li>All scores and results</li>
+                  <li>All attendance records</li>
+                  <li>All terms and academic years</li>
+                  <li>All fees and payment records</li>
+                  <li>All report card templates</li>
+                  <li>All audit logs</li>
+                  <li>The school (tenant) itself</li>
+                </ul>
+                <p className="text-sm text-red-700 font-semibold mb-4">
+                  This action is IRREVERSIBLE and cannot be undone!
+                </p>
+                <Button
+                  variant="outline"
+                  className="border-red-500 text-red-700 hover:bg-red-100"
+                  onClick={() => setShowDeleteConfirm(true)}
+                >
+                  <TrashIcon className="h-4 w-4 mr-2" />
+                  Delete School
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="bg-red-100 border border-red-300 rounded-lg p-4">
+                  <p className="text-sm font-semibold text-red-900 mb-2">
+                    ⚠️ Are you absolutely sure?
+                  </p>
+                  <p className="text-sm text-red-800 mb-4">
+                    This will permanently delete <strong>{school?.name}</strong> and ALL associated data.
+                    This action cannot be undone.
+                  </p>
+                  <p className="text-sm text-red-800 mb-2">
+                    Please type <strong>{school?.name}</strong> to confirm:
+                  </p>
+                  <Input
+                    type="text"
+                    value={deleteConfirmText}
+                    onChange={(e) => setDeleteConfirmText(e.target.value)}
+                    placeholder={school?.name}
+                    className="mb-4 border-red-300 focus:border-red-500 focus:ring-red-500"
+                  />
+                  <div className="flex gap-3">
+                    <Button
+                      variant="destructive"
+                      onClick={handleDeleteSchool}
+                      disabled={deleting || deleteConfirmText.toLowerCase().trim() !== school?.name.toLowerCase().trim()}
+                      className="bg-red-600 hover:bg-red-700"
+                    >
+                      {deleting ? 'Deleting...' : 'Yes, Delete Permanently'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setShowDeleteConfirm(false);
+                        setDeleteConfirmText('');
+                        setError('');
+                      }}
+                      disabled={deleting}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
