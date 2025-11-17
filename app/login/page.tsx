@@ -27,7 +27,7 @@ export default function LoginPage() {
 
       // Get custom claims
       const idTokenResult = await userCredential.user.getIdTokenResult();
-      const role = idTokenResult.claims.role as 'admin' | 'teacher' | 'parent';
+      const role = idTokenResult.claims.role as 'superadmin' | 'admin' | 'teacher' | 'parent';
       const tenantId = idTokenResult.claims.tenantId as string;
 
       console.log('Logged in successfully:', { role, tenantId });
@@ -51,8 +51,12 @@ export default function LoginPage() {
         },
       });
 
-      // Redirect to dashboard
-      router.push('/dashboard');
+      // Redirect based on role
+      if (role === 'superadmin') {
+        router.push('/dashboard/superadmin');
+      } else {
+        router.push('/dashboard');
+      }
     } catch (err: any) {
       console.error('Login error:', err);
 

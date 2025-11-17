@@ -7,6 +7,11 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId;
     }
 
+    // Helper function: Check if user is super admin
+    function isSuperAdmin() {
+      return request.auth.token.role == 'superadmin';
+    }
+
     // Helper function: Check if user is admin
     function isAdmin() {
       return request.auth.token.role == 'admin';
@@ -17,9 +22,9 @@ service cloud.firestore {
       return request.auth.token.role in ['teacher', 'admin'];
     }
 
-    // Tenants: Only authenticated users can read their own tenant, admins can update
+    // Tenants: Super admins can read all tenants, regular users can read their own tenant
     match /tenants/{tenantId} {
-      allow read: if request.auth != null && getUserTenant() == tenantId;
+      allow read: if request.auth != null && (isSuperAdmin() || getUserTenant() == tenantId);
       allow update: if isAdmin() && getUserTenant() == tenantId;
       allow create, delete: if false; // Only via admin SDK
     }

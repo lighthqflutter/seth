@@ -48,7 +48,15 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
     return null; // Will redirect to login
   }
 
-  const navigation = [
+  // Super Admin Navigation
+  const superAdminNavigation = [
+    { name: 'Dashboard', href: '/dashboard/superadmin', icon: '🏠' },
+    { name: 'Schools', href: '/dashboard/superadmin/schools', icon: '🏫' },
+    { name: 'Add New School', href: '/register', icon: '➕' },
+  ];
+
+  // Regular Navigation
+  const regularNavigation = [
     { name: 'Dashboard', href: '/dashboard', icon: '🏠' },
     { name: 'Students', href: '/dashboard/students', icon: '👥' },
     { name: 'Teachers', href: '/dashboard/teachers', icon: '👨‍🏫', roles: ['admin'] },
@@ -68,10 +76,10 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
     { name: 'Settings', href: '/dashboard/settings/email-preferences', icon: '⚙️', roles: ['admin'] },
   ];
 
-  // Filter navigation based on user role
-  const filteredNav = navigation.filter((item) =>
-    !item.roles || item.roles.includes(user.role || 'parent')
-  );
+  // Choose navigation based on user role and filter
+  const filteredNav = user.role === 'superadmin'
+    ? superAdminNavigation
+    : regularNavigation.filter((item) => !item.roles || item.roles.includes(user.role || 'parent'));
 
   return (
     <div className="min-h-screen bg-gray-50">
