@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import Link from 'next/link';
@@ -12,10 +12,19 @@ import {
   ChartBarIcon,
   Cog6ToothIcon
 } from '@heroicons/react/24/outline';
+import { collection, query, getDocs, where } from 'firebase/firestore';
+import { db } from '@/lib/firebase/client';
 
 export default function SuperAdminDashboard() {
   const router = useRouter();
   const { user, loading } = useAuth();
+  const [stats, setStats] = useState({
+    totalSchools: 0,
+    totalStudents: 0,
+    totalTeachers: 0,
+    totalRevenue: 0,
+  });
+  const [loadingStats, setLoadingStats] = useState(true);
 
   // Check if user is super admin
   useEffect(() => {
@@ -24,9 +33,44 @@ export default function SuperAdminDashboard() {
         router.push('/login?redirect=/dashboard/superadmin');
       } else if (user.role !== 'superadmin') {
         router.push('/dashboard');
+      } else {
+        loadStats();
       }
     }
   }, [user, loading, router]);
+
+  const loadStats = async () => {
+    try {
+      setLoadingStats(true);
+
+      // Count total schools
+      const tenantsSnapshot = await getDocs(collection(db, 'tenants'));
+      const totalSchools = tenantsSnapshot.size;
+
+      // Count total students across all tenants
+      const studentsSnapshot = await getDocs(collection(db, 'students'));
+      const totalStudents = studentsSnapshot.size;
+
+      // Count total teachers (users with role 'teacher')
+      const teachersQuery = query(
+        collection(db, 'users'),
+        where('role', '==', 'teacher')
+      );
+      const teachersSnapshot = await getDocs(teachersQuery);
+      const totalTeachers = teachersSnapshot.size;
+
+      setStats({
+        totalSchools,
+        totalStudents,
+        totalTeachers,
+        totalRevenue: 0, // Placeholder for now
+      });
+    } catch (err) {
+      console.error('Error loading stats:', err);
+    } finally {
+      setLoadingStats(false);
+    }
+  };
 
   // Show loading while checking auth
   if (loading) {
@@ -69,28 +113,52 @@ export default function SuperAdminDashboard() {
           <Card>
             <CardHeader className="pb-3">
               <CardDescription>Total Schools</CardDescription>
-              <CardTitle className="text-3xl">0</CardTitle>
+              <CardTitle className="text-3xl">
+                {loadingStats ? (
+                  <div className="animate-pulse bg-gray-200 h-9 w-16 rounded"></div>
+                ) : (
+                  stats.totalSchools
+                )}
+              </CardTitle>
             </CardHeader>
           </Card>
 
           <Card>
             <CardHeader className="pb-3">
               <CardDescription>Active Students</CardDescription>
-              <CardTitle className="text-3xl">0</CardTitle>
+              <CardTitle className="text-3xl">
+                {loadingStats ? (
+                  <div className="animate-pulse bg-gray-200 h-9 w-16 rounded"></div>
+                ) : (
+                  stats.totalStudents
+                )}
+              </CardTitle>
             </CardHeader>
           </Card>
 
           <Card>
             <CardHeader className="pb-3">
               <CardDescription>Total Teachers</CardDescription>
-              <CardTitle className="text-3xl">0</CardTitle>
+              <CardTitle className="text-3xl">
+                {loadingStats ? (
+                  <div className="animate-pulse bg-gray-200 h-9 w-16 rounded"></div>
+                ) : (
+                  stats.totalTeachers
+                )}
+              </CardTitle>
             </CardHeader>
           </Card>
 
           <Card>
             <CardHeader className="pb-3">
               <CardDescription>Platform Revenue</CardDescription>
-              <CardTitle className="text-3xl">₦0</CardTitle>
+              <CardTitle className="text-3xl">
+                {loadingStats ? (
+                  <div className="animate-pulse bg-gray-200 h-9 w-16 rounded"></div>
+                ) : (
+                  `₦${stats.totalRevenue.toLocaleString()}`
+                )}
+              </CardTitle>
             </CardHeader>
           </Card>
         </div>
