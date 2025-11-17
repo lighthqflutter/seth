@@ -24,15 +24,17 @@ service cloud.firestore {
 
     // Tenants: Super admins can read all tenants, regular users can read their own tenant
     match /tenants/{tenantId} {
-      allow read: if request.auth != null && (isSuperAdmin() || getUserTenant() == tenantId);
+      allow read: if request.auth != null && isSuperAdmin();
+      allow read: if request.auth != null && !isSuperAdmin() && getUserTenant() == tenantId;
       allow update: if isAdmin() && getUserTenant() == tenantId;
       allow create, delete: if false; // Only via admin SDK
     }
 
     // Users: Can read/update own profile, admins can create teachers
     match /users/{userId} {
+      allow read: if request.auth != null && isSuperAdmin();
       allow read: if request.auth.uid == userId ||
-                     (request.auth != null && resource.data.tenantId == getUserTenant());
+                     (request.auth != null && !isSuperAdmin() && resource.data.tenantId == getUserTenant());
       allow update: if request.auth.uid == userId;
       allow create: if isAdmin() && request.resource.data.tenantId == getUserTenant();
       allow delete: if false; // Only via admin SDK
@@ -40,7 +42,8 @@ service cloud.firestore {
 
     // Students: Tenant-scoped access
     match /students/{studentId} {
-      allow read: if request.auth != null &&
+      allow read: if request.auth != null && isSuperAdmin();
+      allow read: if request.auth != null && !isSuperAdmin() &&
                      resource.data.tenantId == getUserTenant();
       allow create: if isAdmin() &&
                        request.resource.data.tenantId == getUserTenant();
