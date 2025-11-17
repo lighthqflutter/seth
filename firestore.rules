@@ -26,6 +26,7 @@ service cloud.firestore {
     match /tenants/{tenantId} {
       allow read: if request.auth != null && isSuperAdmin();
       allow read: if request.auth != null && !isSuperAdmin() && getUserTenant() == tenantId;
+      allow update: if isSuperAdmin();
       allow update: if isAdmin() && getUserTenant() == tenantId;
       allow create, delete: if false; // Only via admin SDK
     }
