@@ -9,7 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { CloudArrowUpIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { CloudArrowUpIcon, TrashIcon, ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
 
 interface FormData {
   name: string;
@@ -19,6 +19,8 @@ interface FormData {
   qualifications: string;
   subjectIds: string[];
   gender: 'male' | 'female' | '';
+  classId: string; // Class teacher assignment (empty if not class teacher)
+  subjectClassMappings: { [subjectId: string]: string[] }; // subject -> array of class IDs
 }
 
 interface FormErrors {
@@ -31,6 +33,11 @@ interface Subject {
   id: string;
   name: string;
   code: string;
+}
+
+interface ClassOption {
+  id: string;
+  name: string;
 }
 
 export default function EditTeacherPage() {
@@ -50,6 +57,8 @@ export default function EditTeacherPage() {
     qualifications: '',
     subjectIds: [],
     gender: '',
+    classId: '',
+    subjectClassMappings: {},
   });
   const [errors, setErrors] = useState<FormErrors>({});
   const [saving, setSaving] = useState(false);
@@ -62,8 +71,10 @@ export default function EditTeacherPage() {
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  // Subjects state
+  // Data state
   const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [classes, setClasses] = useState<ClassOption[]>([]);
+  const [expandedSubjects, setExpandedSubjects] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const loadData = async () => {
@@ -87,8 +98,21 @@ export default function EditTeacherPage() {
           qualifications: data.qualifications || '',
           subjectIds: data.subjectIds || [],
           gender: data.gender || '',
+          classId: data.classId || '',
+          subjectClassMappings: data.subjectClassMappings || {},
         });
         setCurrentPhotoUrl(data.photoUrl || '');
+
+        // Pre-expand subjects that have class mappings
+        if (data.subjectClassMappings) {
+          const expandedSet = new Set<string>();
+          Object.keys(data.subjectClassMappings).forEach(subjectId => {
+            if (data.subjectClassMappings[subjectId].length > 0) {
+              expandedSet.add(subjectId);
+            }
+          });
+          setExpandedSubjects(expandedSet);
+        }
 
         // Load subjects
         const subjectsQuery = query(
@@ -102,6 +126,18 @@ export default function EditTeacherPage() {
           code: doc.data().code,
         })) as Subject[];
         setSubjects(subjectsData);
+
+        // Load classes
+        const classesQuery = query(
+          collection(db, 'classes'),
+          where('tenantId', '==', user.tenantId)
+        );
+        const classesSnapshot = await getDocs(classesQuery);
+        const classesData = classesSnapshot.docs.map(doc => ({
+          id: doc.id,
+          name: doc.data().name,
+        })) as ClassOption[];
+        setClasses(classesData);
 
         setLoading(false);
       } catch (error) {
@@ -173,12 +209,58 @@ export default function EditTeacherPage() {
   };
 
   const handleSubjectToggle = (subjectId: string) => {
-    setFormData(prev => ({
-      ...prev,
-      subjectIds: prev.subjectIds.includes(subjectId)
+    setFormData(prev => {
+      const newSubjectIds = prev.subjectIds.includes(subjectId)
         ? prev.subjectIds.filter(id => id !== subjectId)
-        : [...prev.subjectIds, subjectId]
-    }));
+        : [...prev.subjectIds, subjectId];
+
+      // Remove mappings if subject is unchecked
+      const newMappings = { ...prev.subjectClassMappings };
+      if (!newSubjectIds.includes(subjectId)) {
+        delete newMappings[subjectId];
+        // Remove from expanded subjects
+        setExpandedSubjects(prev => {
+          const next = new Set(prev);
+          next.delete(subjectId);
+          return next;
+        });
+      }
+
+      return {
+        ...prev,
+        subjectIds: newSubjectIds,
+        subjectClassMappings: newMappings,
+      };
+    });
+  };
+
+  const toggleSubjectExpansion = (subjectId: string) => {
+    setExpandedSubjects(prev => {
+      const next = new Set(prev);
+      if (next.has(subjectId)) {
+        next.delete(subjectId);
+      } else {
+        next.add(subjectId);
+      }
+      return next;
+    });
+  };
+
+  const handleSubjectClassToggle = (subjectId: string, classId: string) => {
+    setFormData(prev => {
+      const currentClasses = prev.subjectClassMappings[subjectId] || [];
+      const newClasses = currentClasses.includes(classId)
+        ? currentClasses.filter(id => id !== classId)
+        : [...currentClasses, classId];
+
+      return {
+        ...prev,
+        subjectClassMappings: {
+          ...prev.subjectClassMappings,
+          [subjectId]: newClasses,
+        },
+      };
+    });
   };
 
   const validateForm = (): boolean => {
@@ -267,6 +349,23 @@ export default function EditTeacherPage() {
         updateData.gender = formData.gender;
       }
 
+      if (formData.classId) {
+        updateData.classId = formData.classId;
+      }
+
+      // Only save mappings for subjects that have classes selected
+      const validMappings: { [key: string]: string[] } = {};
+      formData.subjectIds.forEach(subjectId => {
+        const classes = formData.subjectClassMappings[subjectId] || [];
+        if (classes.length > 0) {
+          validMappings[subjectId] = classes;
+        }
+      });
+
+      if (Object.keys(validMappings).length > 0) {
+        updateData.subjectClassMappings = validMappings;
+      }
+
       if (photoUrl) {
         updateData.photoUrl = photoUrl;
       }
@@ -307,19 +406,23 @@ export default function EditTeacherPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-3xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Edit Teacher</h1>
-        <p className="text-gray-600 mt-1">Update teacher information</p>
+        <p className="text-gray-600 mt-1">Update teacher information with class and subject assignments</p>
       </div>
 
       <Card>
         <CardContent className="pt-6">
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                Teacher Name *
-              </label>
+            {/* Basic Information */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Basic Information</h3>
+
+              <div>
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+                  Teacher Name *
+                </label>
               <Input
                 id="name"
                 value={formData.name}
@@ -465,34 +568,110 @@ export default function EditTeacherPage() {
                 placeholder="e.g., B.Ed., M.Sc. Mathematics"
               />
             </div>
+            </div>
 
-            {/* Subjects */}
-            {subjects.length > 0 && (
+            {/* Class Teacher Assignment */}
+            <div className="space-y-4 pt-6 border-t">
+              <h3 className="text-lg font-semibold text-gray-900">Class Teacher Assignment</h3>
+              <p className="text-sm text-gray-600">
+                If this teacher is a class/form teacher, select their assigned class. Leave empty if they are only a subject teacher.
+              </p>
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Subjects Taught (Optional)
+                <label htmlFor="classId" className="block text-sm font-medium text-gray-700 mb-2">
+                  Assigned Class (Optional)
                 </label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {subjects.map((subject) => (
-                    <label
-                      key={subject.id}
-                      className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={formData.subjectIds.includes(subject.id)}
-                        onChange={() => handleSubjectToggle(subject.id)}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      />
-                      <span className="ml-2 text-sm text-gray-700">
-                        {subject.name}
-                      </span>
-                    </label>
+                <select
+                  id="classId"
+                  value={formData.classId}
+                  onChange={(e) => setFormData({ ...formData, classId: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Not a class teacher</option>
+                  {classes.map(cls => (
+                    <option key={cls.id} value={cls.id}>{cls.name}</option>
                   ))}
-                </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  Select all subjects this teacher will teach
+                </select>
+              </div>
+            </div>
+
+            {/* Subject Teaching Assignments */}
+            {subjects.length > 0 && (
+              <div className="space-y-4 pt-6 border-t">
+                <h3 className="text-lg font-semibold text-gray-900">Subject Teaching Assignments</h3>
+                <p className="text-sm text-gray-600">
+                  Select the subjects this teacher teaches, then specify which classes they teach each subject to.
                 </p>
+
+                <div className="space-y-3">
+                  {subjects.map((subject) => {
+                    const isSelected = formData.subjectIds.includes(subject.id);
+                    const isExpanded = expandedSubjects.has(subject.id);
+                    const selectedClasses = formData.subjectClassMappings[subject.id] || [];
+
+                    return (
+                      <div key={subject.id} className="border rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                          <label className="flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => handleSubjectToggle(subject.id)}
+                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            />
+                            <span className="ml-3 text-sm font-medium text-gray-900">
+                              {subject.name} ({subject.code})
+                            </span>
+                          </label>
+
+                          {isSelected && (
+                            <button
+                              type="button"
+                              onClick={() => toggleSubjectExpansion(subject.id)}
+                              className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
+                            >
+                              {isExpanded ? (
+                                <>
+                                  <ChevronUpIcon className="h-4 w-4" />
+                                  <span>Hide Classes ({selectedClasses.length} selected)</span>
+                                </>
+                              ) : (
+                                <>
+                                  <ChevronDownIcon className="h-4 w-4" />
+                                  <span>Select Classes ({selectedClasses.length} selected)</span>
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </div>
+
+                        {isSelected && isExpanded && (
+                          <div className="mt-4 pl-7 space-y-2">
+                            <p className="text-xs text-gray-600 mb-2">
+                              Select which classes this teacher teaches {subject.name} to:
+                            </p>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                              {classes.map((cls) => (
+                                <label
+                                  key={cls.id}
+                                  className="flex items-center p-2 border rounded hover:bg-gray-50 cursor-pointer"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedClasses.includes(cls.id)}
+                                    onChange={() => handleSubjectClassToggle(subject.id, cls.id)}
+                                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                  />
+                                  <span className="ml-2 text-sm text-gray-700">{cls.name}</span>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
 

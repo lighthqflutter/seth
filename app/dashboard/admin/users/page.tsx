@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { logAudit } from '@/lib/auditLogger';
+import UserTypeModal from '@/components/UserTypeModal';
 import {
   MagnifyingGlassIcon,
   UserPlusIcon,
@@ -58,6 +59,7 @@ export default function UsersManagementPage() {
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [changingRole, setChangingRole] = useState<string | null>(null);
+  const [showModal, setShowModal] = useState(false);
 
   // Check admin access
   useEffect(() => {
@@ -292,12 +294,14 @@ export default function UsersManagementPage() {
           <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
           <p className="text-gray-600 mt-1">Manage all users in your school</p>
         </div>
-        <Button onClick={() => router.push('/dashboard/admin/users/new')}>
+        <Button onClick={() => setShowModal(true)}>
           <UserPlusIcon className="h-5 w-5 mr-2" />
           Add User
         </Button>
       </div>
 
+      {/* User Type Selection Modal */}
+      <UserTypeModal isOpen={showModal} onClose={() => setShowModal(false)} />
       {/* Statistics Cards */}
       <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
         <Card>

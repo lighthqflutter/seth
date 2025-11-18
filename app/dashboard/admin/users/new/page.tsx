@@ -1,11 +1,11 @@
 'use client';
 
 /**
- * Create New User Page (Phase 14)
- * Super Admin feature for creating new users
+ * Create New Admin User Page (Phase 14)
+ * Super Admin feature for creating admin users only
  *
  * Features:
- * - Create admin, teacher, or parent accounts
+ * - Create admin accounts only (teachers and parents use specialized forms)
  * - Email validation
  * - Optional phone number
  * - Auto-generate secure password option
@@ -28,7 +28,7 @@ interface FormData {
   name: string;
   email: string;
   phone: string;
-  role: 'admin' | 'teacher' | 'parent' | '';
+  role: 'admin' | '';
   isActive: boolean;
 }
 
@@ -48,7 +48,7 @@ export default function NewUserPage() {
     name: '',
     email: '',
     phone: '',
-    role: '',
+    role: 'admin',
     isActive: true,
   });
   const [errors, setErrors] = useState<FormErrors>({});
@@ -77,9 +77,9 @@ export default function NewUserPage() {
       newErrors.email = 'Invalid email format';
     }
 
-    // Role validation
-    if (!formData.role) {
-      newErrors.role = 'Role is required';
+    // Role validation (should always be admin)
+    if (formData.role !== 'admin') {
+      newErrors.role = 'Invalid role';
     }
 
     // Phone validation (optional but must be valid if provided)
@@ -116,8 +116,8 @@ export default function NewUserPage() {
         return;
       }
 
-      // Check quotas before creating user
-      if (formData.role === 'teacher' || formData.role === 'admin') {
+      // Check admin quota before creating user
+      if (formData.role === 'admin') {
         // Get tenant document
         const tenantDoc = await getDoc(doc(db, 'tenants', user.tenantId));
         if (!tenantDoc.exists()) {
@@ -128,52 +128,23 @@ export default function NewUserPage() {
 
         const tenant = tenantDoc.data() as Tenant;
 
-        if (formData.role === 'teacher') {
-          // Count existing teachers
-          const teachersQuery = query(
-            collection(db, 'users'),
-            where('tenantId', '==', user.tenantId),
-            where('role', '==', 'teacher')
-          );
-          const teachersSnapshot = await getDocs(teachersQuery);
-          const currentTeacherCount = teachersSnapshot.size;
+        // Count existing admins
+        const adminsQuery = query(
+          collection(db, 'users'),
+          where('tenantId', '==', user.tenantId),
+          where('role', '==', 'admin')
+        );
+        const adminsSnapshot = await getDocs(adminsQuery);
+        const currentAdminCount = adminsSnapshot.size;
 
-          // Count classes
-          const classesQuery = query(
-            collection(db, 'classes'),
-            where('tenantId', '==', user.tenantId)
+        // Check against maxAdmins quota
+        if (currentAdminCount >= tenant.maxAdmins) {
+          setError(
+            `School Admin quota reached. Your school is limited to ${tenant.maxAdmins} administrators. ` +
+            `You currently have ${currentAdminCount} admins.`
           );
-          const classesSnapshot = await getDocs(classesQuery);
-          const classCount = classesSnapshot.size;
-
-          // Teachers can only be 1 ahead of classes
-          if (currentTeacherCount >= classCount + 1) {
-            setError(
-              `Teacher quota reached. You have ${currentTeacherCount} teachers and ${classCount} classes. ` +
-              `Please create a class first and assign it a teacher before adding more teachers.`
-            );
-            setSaving(false);
-            return;
-          }
-        } else if (formData.role === 'admin') {
-          // Count existing admins
-          const adminsQuery = query(
-            collection(db, 'users'),
-            where('tenantId', '==', user.tenantId),
-            where('role', '==', 'admin')
-          );
-          const adminsSnapshot = await getDocs(adminsQuery);
-          const currentAdminCount = adminsSnapshot.size;
-
-          // Check against maxAdmins quota
-          if (currentAdminCount >= tenant.maxAdmins) {
-            setError(
-              `School Admin quota reached. Your school is limited to ${tenant.maxAdmins} administrators. ` +
-              `You currently have ${currentAdminCount} admins.`
-            );
-            setSaving(false);
-            return;
-          }
+          setSaving(false);
+          return;
         }
       }
 
@@ -281,8 +252,8 @@ export default function NewUserPage() {
           <ArrowLeftIcon className="h-4 w-4 mr-1" />
           Back to Users
         </button>
-        <h1 className="text-2xl font-bold text-gray-900">Create New User</h1>
-        <p className="text-gray-600 mt-1">Add a new user to your school system</p>
+        <h1 className="text-2xl font-bold text-gray-900">Create New Admin User</h1>
+        <p className="text-gray-600 mt-1">Add a new administrator to your school system</p>
       </div>
 
       {/* Error Alert */}
@@ -354,47 +325,32 @@ export default function NewUserPage() {
                 )}
               </div>
 
-              {/* Role */}
-              <div>
-                <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
-                  User Role <span className="text-red-500">*</span>
-                </label>
-                <select
-                  id="role"
-                  value={formData.role}
-                  onChange={(e) => handleChange('role', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 ${
-                    errors.role ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                >
-                  <option value="">Select a role...</option>
-                  <option value="admin">Admin - Full system access</option>
-                  <option value="teacher">Teacher - Manage classes and scores</option>
-                  <option value="parent">Parent - View student results</option>
-                </select>
-                {errors.role && (
-                  <p className="mt-1 text-sm text-red-600">{errors.role}</p>
-                )}
+              {/* Role - Hidden, defaults to admin */}
+              <input type="hidden" name="role" value="admin" />
+
+              {/* Admin Role Info */}
+              <div className="p-4 bg-purple-50 border border-purple-200 rounded-md">
+                <p className="text-sm font-medium text-purple-900 mb-1">
+                  Administrator Role
+                </p>
+                <p className="text-sm text-purple-700">
+                  Administrators have full system access and can manage all aspects including users, students, classes, scores, and reports.
+                </p>
               </div>
 
-              {/* Role Descriptions */}
-              {formData.role && (
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-md">
-                  <p className="text-sm font-medium text-blue-900 mb-1">
-                    {formData.role === 'admin' && 'Admin Role'}
-                    {formData.role === 'teacher' && 'Teacher Role'}
-                    {formData.role === 'parent' && 'Parent Role'}
-                  </p>
-                  <p className="text-sm text-blue-700">
-                    {formData.role === 'admin' &&
-                      'Can manage all aspects of the system including users, students, classes, scores, and reports.'}
-                    {formData.role === 'teacher' &&
-                      'Can manage assigned classes, enter and publish scores, view student records, and generate reports for their classes.'}
-                    {formData.role === 'parent' &&
-                      'Can view their children\'s results, scores, attendance, and download report cards.'}
-                  </p>
-                </div>
-              )}
+              {/* Info about other user types */}
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-md">
+                <p className="text-sm font-medium text-blue-900 mb-2">
+                  Creating Teachers or Parents/Guardians?
+                </p>
+                <p className="text-sm text-blue-700">
+                  Use the specialized forms to create teacher or parent accounts with proper role-specific information:
+                </p>
+                <ul className="text-sm text-blue-700 mt-2 ml-4 list-disc">
+                  <li>Teachers: Use "Add User" → "Teacher" to set up class and subject assignments</li>
+                  <li>Parents/Guardians: Use "Add User" → "Parent/Guardian" to link with students</li>
+                </ul>
+              </div>
 
               {/* Active Status */}
               <div className="flex items-center">
