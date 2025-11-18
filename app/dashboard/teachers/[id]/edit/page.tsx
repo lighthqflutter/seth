@@ -243,13 +243,29 @@ export default function EditTeacherPage() {
       const updateData: any = {
         name: formData.name.trim(),
         email: formData.email.trim(),
-        phone: formData.phone.trim() || undefined,
-        bio: formData.bio.trim() || undefined,
-        qualifications: formData.qualifications.trim() || undefined,
-        subjectIds: formData.subjectIds.length > 0 ? formData.subjectIds : undefined,
-        gender: formData.gender || undefined,
         updatedAt: new Date(),
       };
+
+      // Only include optional fields if they have values
+      if (formData.phone.trim()) {
+        updateData.phone = formData.phone.trim();
+      }
+
+      if (formData.bio.trim()) {
+        updateData.bio = formData.bio.trim();
+      }
+
+      if (formData.qualifications.trim()) {
+        updateData.qualifications = formData.qualifications.trim();
+      }
+
+      if (formData.subjectIds.length > 0) {
+        updateData.subjectIds = formData.subjectIds;
+      }
+
+      if (formData.gender) {
+        updateData.gender = formData.gender;
+      }
 
       if (photoUrl) {
         updateData.photoUrl = photoUrl;
