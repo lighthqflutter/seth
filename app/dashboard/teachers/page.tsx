@@ -19,6 +19,7 @@ interface Teacher {
   bio?: string;
   qualifications?: string;
   subjectIds?: string[];
+  gender?: 'male' | 'female';
   role: 'teacher';
   isActive: boolean;
   createdAt: {
@@ -30,10 +31,15 @@ export default function TeachersPage() {
   const router = useRouter();
   const { user } = useAuth();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [filteredTeachers, setFilteredTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Filter states
+  const [genderFilter, setGenderFilter] = useState<string>('all');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   useEffect(() => {
     if (!user?.tenantId) return;
@@ -66,6 +72,30 @@ export default function TeachersPage() {
 
     return () => unsubscribe();
   }, [user?.tenantId]);
+
+  // Apply filters and sorting
+  useEffect(() => {
+    let filtered = [...teachers];
+
+    // Apply gender filter
+    if (genderFilter !== 'all') {
+      filtered = filtered.filter(teacher => teacher.gender === genderFilter);
+    }
+
+    // Apply alphabetical sorting
+    filtered.sort((a, b) => {
+      const nameA = a.name.toLowerCase();
+      const nameB = b.name.toLowerCase();
+
+      if (sortOrder === 'asc') {
+        return nameA.localeCompare(nameB);
+      } else {
+        return nameB.localeCompare(nameA);
+      }
+    });
+
+    setFilteredTeachers(filtered);
+  }, [teachers, genderFilter, sortOrder]);
 
   const handleImportCSV = () => {
     fileInputRef.current?.click();
@@ -222,6 +252,60 @@ export default function TeachersPage() {
         </Card>
       )}
 
+      {/* Filters */}
+      {teachers.length > 0 && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Gender Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Gender
+                </label>
+                <select
+                  value={genderFilter}
+                  onChange={(e) => setGenderFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">All Genders</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                </select>
+              </div>
+
+              {/* Sort Order */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Sort By Name
+                </label>
+                <select
+                  value={sortOrder}
+                  onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="asc">A-Z (Ascending)</option>
+                  <option value="desc">Z-A (Descending)</option>
+                </select>
+              </div>
+
+              {/* Clear Filters */}
+              <div className="flex items-end">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setGenderFilter('all');
+                    setSortOrder('asc');
+                  }}
+                  className="w-full"
+                >
+                  Clear Filters
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Teachers List */}
       {teachers.length === 0 ? (
         <Card>
@@ -247,7 +331,7 @@ export default function TeachersPage() {
         </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
-          {teachers.map((teacher) => (
+          {filteredTeachers.map((teacher) => (
             <Card key={teacher.id} className="hover:shadow-md transition-shadow">
               <CardContent className="p-6">
                 <div className="flex items-start gap-4">

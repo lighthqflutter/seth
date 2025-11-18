@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { UserIcon } from '@heroicons/react/24/outline';
 
 interface Student {
   id: string;
@@ -16,11 +17,18 @@ interface Student {
   lastName: string;
   admissionNumber: string;
   currentClass: string;
+  currentClassId: string;
+  gender: 'male' | 'female';
   dateOfBirth: {
     toDate: () => Date;
   };
   status: 'active' | 'inactive' | 'graduated' | 'transferred';
-  photoURL?: string;
+  photoUrl?: string;
+}
+
+interface ClassOption {
+  id: string;
+  name: string;
 }
 
 export default function StudentsPage() {
@@ -31,6 +39,38 @@ export default function StudentsPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Filter states
+  const [classFilter, setClassFilter] = useState<string>('all');
+  const [genderFilter, setGenderFilter] = useState<string>('all');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [classes, setClasses] = useState<ClassOption[]>([]);
+
+  // Load classes
+  useEffect(() => {
+    if (!user?.tenantId) return;
+
+    const loadClasses = async () => {
+      try {
+        const classesQuery = query(
+          collection(db, 'classes'),
+          where('tenantId', '==', user.tenantId),
+          orderBy('name')
+        );
+        const classesSnapshot = await getDocs(classesQuery);
+        const classesData = classesSnapshot.docs.map(doc => ({
+          id: doc.id,
+          name: doc.data().name,
+        })) as ClassOption[];
+        setClasses(classesData);
+      } catch (error) {
+        console.error('Error loading classes:', error);
+      }
+    };
+
+    loadClasses();
+  }, [user?.tenantId]);
+
+  // Load students
   useEffect(() => {
     if (!user?.tenantId) return;
 
@@ -49,14 +89,11 @@ export default function StudentsPage() {
         })) as Student[];
 
         setStudents(studentsData);
-        setFilteredStudents(studentsData);
         setLoading(false);
       },
       (error) => {
         console.error('Error loading students:', error);
-        // If index is missing, still show empty state
         setStudents([]);
-        setFilteredStudents([]);
         setLoading(false);
       }
     );
@@ -64,22 +101,44 @@ export default function StudentsPage() {
     return () => unsubscribe();
   }, [user?.tenantId]);
 
+  // Apply filters and sorting
   useEffect(() => {
-    if (!searchQuery.trim()) {
-      setFilteredStudents(students);
-      return;
+    let filtered = [...students];
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter((student) => {
+        const fullName = `${student.firstName} ${student.middleName || ''} ${student.lastName}`.toLowerCase();
+        const admissionNumber = student.admissionNumber.toLowerCase();
+        return fullName.includes(query) || admissionNumber.includes(query);
+      });
     }
 
-    const query = searchQuery.toLowerCase();
-    const filtered = students.filter((student) => {
-      const fullName = `${student.firstName} ${student.middleName || ''} ${student.lastName}`.toLowerCase();
-      const admissionNumber = student.admissionNumber.toLowerCase();
+    // Apply class filter
+    if (classFilter !== 'all') {
+      filtered = filtered.filter(student => student.currentClassId === classFilter);
+    }
 
-      return fullName.includes(query) || admissionNumber.includes(query);
+    // Apply gender filter
+    if (genderFilter !== 'all') {
+      filtered = filtered.filter(student => student.gender === genderFilter);
+    }
+
+    // Apply alphabetical sorting
+    filtered.sort((a, b) => {
+      const nameA = `${a.firstName} ${a.lastName}`.toLowerCase();
+      const nameB = `${b.firstName} ${b.lastName}`.toLowerCase();
+
+      if (sortOrder === 'asc') {
+        return nameA.localeCompare(nameB);
+      } else {
+        return nameB.localeCompare(nameA);
+      }
     });
 
     setFilteredStudents(filtered);
-  }, [searchQuery, students]);
+  }, [searchQuery, students, classFilter, genderFilter, sortOrder]);
 
   const calculateAge = (dateOfBirth: { toDate: () => Date }) => {
     const today = new Date();
@@ -125,13 +184,81 @@ export default function StudentsPage() {
       {/* Search and Filters */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex gap-4">
-            <div className="flex-1">
+          <div className="space-y-4">
+            {/* Search */}
+            <div>
               <Input
                 placeholder="Search students by name or admission number..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
+            </div>
+
+            {/* Filters Row */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {/* Class Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Class
+                </label>
+                <select
+                  value={classFilter}
+                  onChange={(e) => setClassFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">All Classes</option>
+                  {classes.map(cls => (
+                    <option key={cls.id} value={cls.id}>{cls.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Gender Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Gender
+                </label>
+                <select
+                  value={genderFilter}
+                  onChange={(e) => setGenderFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">All Genders</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                </select>
+              </div>
+
+              {/* Sort Order */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Sort By Name
+                </label>
+                <select
+                  value={sortOrder}
+                  onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="asc">A-Z (Ascending)</option>
+                  <option value="desc">Z-A (Descending)</option>
+                </select>
+              </div>
+
+              {/* Clear Filters */}
+              <div className="flex items-end">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setClassFilter('all');
+                    setGenderFilter('all');
+                    setSortOrder('asc');
+                    setSearchQuery('');
+                  }}
+                  className="w-full"
+                >
+                  Clear Filters
+                </Button>
+              </div>
             </div>
           </div>
         </CardContent>
@@ -167,10 +294,17 @@ export default function StudentsPage() {
                 <div className="flex items-center gap-4">
                   {/* Photo */}
                   <div className="flex-shrink-0">
-                    <div className="h-16 w-16 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-semibold text-lg">
-                      {student.firstName[0]}
-                      {student.lastName[0]}
-                    </div>
+                    {student.photoUrl ? (
+                      <img
+                        src={student.photoUrl}
+                        alt={`${student.firstName} ${student.lastName}`}
+                        className="h-16 w-16 rounded-full object-cover border-2 border-gray-200"
+                      />
+                    ) : (
+                      <div className="h-16 w-16 rounded-full bg-blue-100 flex items-center justify-center border-2 border-gray-200">
+                        <UserIcon className="h-8 w-8 text-blue-600" />
+                      </div>
+                    )}
                   </div>
 
                   {/* Student Info */}
@@ -184,6 +318,9 @@ export default function StudentsPage() {
                       </span>
                       <span>
                         <span className="font-medium">Class:</span> {student.currentClass}
+                      </span>
+                      <span>
+                        <span className="font-medium">Gender:</span> {student.gender.charAt(0).toUpperCase() + student.gender.slice(1)}
                       </span>
                       <span>
                         <span className="font-medium">Age:</span> {calculateAge(student.dateOfBirth)} years
