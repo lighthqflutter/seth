@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tenant } from '@/types';
-import { CloudArrowUpIcon } from '@heroicons/react/24/outline';
+import { CloudArrowUpIcon, ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
 
 interface FormData {
   name: string;
@@ -18,7 +18,10 @@ interface FormData {
   phone: string;
   bio: string;
   qualifications: string;
+  gender: 'male' | 'female' | '';
+  classId: string; // Class teacher assignment (empty if not class teacher)
   subjectIds: string[];
+  subjectClassMappings: { [subjectId: string]: string[] }; // subject -> array of class IDs
 }
 
 interface FormErrors {
@@ -33,6 +36,11 @@ interface Subject {
   code: string;
 }
 
+interface ClassOption {
+  id: string;
+  name: string;
+}
+
 export default function NewTeacherPage() {
   const router = useRouter();
   const { user } = useAuth();
@@ -44,7 +52,10 @@ export default function NewTeacherPage() {
     phone: '',
     bio: '',
     qualifications: '',
+    gender: '',
+    classId: '',
     subjectIds: [],
+    subjectClassMappings: {},
   });
   const [errors, setErrors] = useState<FormErrors>({});
   const [saving, setSaving] = useState(false);
@@ -56,10 +67,12 @@ export default function NewTeacherPage() {
   const [photoPreview, setPhotoPreview] = useState<string>('');
   const [uploading, setUploading] = useState(false);
 
-  // Subjects state
+  // Data state
   const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [classes, setClasses] = useState<ClassOption[]>([]);
+  const [expandedSubjects, setExpandedSubjects] = useState<Set<string>>(new Set());
 
-  // Load school information and subjects
+  // Load school information, subjects, and classes
   useEffect(() => {
     const loadData = async () => {
       if (!user?.tenantId) return;
@@ -87,6 +100,18 @@ export default function NewTeacherPage() {
           code: doc.data().code,
         })) as Subject[];
         setSubjects(subjectsData);
+
+        // Load classes
+        const classesQuery = query(
+          collection(db, 'classes'),
+          where('tenantId', '==', user.tenantId)
+        );
+        const classesSnapshot = await getDocs(classesQuery);
+        const classesData = classesSnapshot.docs.map(doc => ({
+          id: doc.id,
+          name: doc.data().name,
+        })) as ClassOption[];
+        setClasses(classesData);
       } catch (error) {
         console.error('Error loading data:', error);
       }
@@ -123,12 +148,58 @@ export default function NewTeacherPage() {
   };
 
   const handleSubjectToggle = (subjectId: string) => {
-    setFormData(prev => ({
-      ...prev,
-      subjectIds: prev.subjectIds.includes(subjectId)
+    setFormData(prev => {
+      const newSubjectIds = prev.subjectIds.includes(subjectId)
         ? prev.subjectIds.filter(id => id !== subjectId)
-        : [...prev.subjectIds, subjectId]
-    }));
+        : [...prev.subjectIds, subjectId];
+
+      // Remove mappings if subject is unchecked
+      const newMappings = { ...prev.subjectClassMappings };
+      if (!newSubjectIds.includes(subjectId)) {
+        delete newMappings[subjectId];
+        // Remove from expanded subjects
+        setExpandedSubjects(prev => {
+          const next = new Set(prev);
+          next.delete(subjectId);
+          return next;
+        });
+      }
+
+      return {
+        ...prev,
+        subjectIds: newSubjectIds,
+        subjectClassMappings: newMappings,
+      };
+    });
+  };
+
+  const toggleSubjectExpansion = (subjectId: string) => {
+    setExpandedSubjects(prev => {
+      const next = new Set(prev);
+      if (next.has(subjectId)) {
+        next.delete(subjectId);
+      } else {
+        next.add(subjectId);
+      }
+      return next;
+    });
+  };
+
+  const handleSubjectClassToggle = (subjectId: string, classId: string) => {
+    setFormData(prev => {
+      const currentClasses = prev.subjectClassMappings[subjectId] || [];
+      const newClasses = currentClasses.includes(classId)
+        ? currentClasses.filter(id => id !== classId)
+        : [...currentClasses, classId];
+
+      return {
+        ...prev,
+        subjectClassMappings: {
+          ...prev.subjectClassMappings,
+          [subjectId]: newClasses,
+        },
+      };
+    });
   };
 
   const validateForm = (): boolean => {
@@ -164,42 +235,6 @@ export default function NewTeacherPage() {
     try {
       if (!user) {
         setSaveError('User not authenticated');
-        setSaving(false);
-        return;
-      }
-
-      // Check teacher quota before creating
-      // Get tenant document
-      const tenantDoc = await getDoc(doc(db, 'tenants', user.tenantId));
-      if (!tenantDoc.exists()) {
-        setSaveError('School information not found');
-        setSaving(false);
-        return;
-      }
-
-      // Count existing teachers
-      const teachersQuery = query(
-        collection(db, 'users'),
-        where('tenantId', '==', user.tenantId),
-        where('role', '==', 'teacher')
-      );
-      const teachersSnapshot = await getDocs(teachersQuery);
-      const currentTeacherCount = teachersSnapshot.size;
-
-      // Count classes
-      const classesQuery = query(
-        collection(db, 'classes'),
-        where('tenantId', '==', user.tenantId)
-      );
-      const classesSnapshot = await getDocs(classesQuery);
-      const classCount = classesSnapshot.size;
-
-      // Teachers can only be 1 ahead of classes
-      if (currentTeacherCount >= classCount + 1) {
-        setSaveError(
-          `Teacher quota reached. You have ${currentTeacherCount} teachers and ${classCount} classes. ` +
-          `Please create a class first and assign it a teacher before adding more teachers.`
-        );
         setSaving(false);
         return;
       }
@@ -265,8 +300,29 @@ export default function NewTeacherPage() {
         updateData.qualifications = formData.qualifications.trim();
       }
 
+      if (formData.gender) {
+        updateData.gender = formData.gender;
+      }
+
+      if (formData.classId) {
+        updateData.classId = formData.classId;
+      }
+
       if (formData.subjectIds.length > 0) {
         updateData.subjectIds = formData.subjectIds;
+      }
+
+      // Only save mappings for subjects that have classes selected
+      const validMappings: { [key: string]: string[] } = {};
+      formData.subjectIds.forEach(subjectId => {
+        const classes = formData.subjectClassMappings[subjectId] || [];
+        if (classes.length > 0) {
+          validMappings[subjectId] = classes;
+        }
+      });
+
+      if (Object.keys(validMappings).length > 0) {
+        updateData.subjectClassMappings = validMappings;
       }
 
       if (photoUrl) {
@@ -285,162 +341,250 @@ export default function NewTeacherPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-3xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Add Teacher</h1>
-        <p className="text-gray-600 mt-1">Create a new teacher account</p>
+        <p className="text-gray-600 mt-1">Create a new teacher account with class and subject assignments</p>
       </div>
 
       <Card>
         <CardContent className="pt-6">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Info Box */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-sm text-blue-900">
-                <strong>Note:</strong> Teachers should be created first before creating their classes so they can be assigned during class creation.
-                You can only have 1 more teacher than the number of classes you've created.
-              </p>
-            </div>
+            {/* Basic Information */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Basic Information</h3>
 
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                Teacher Name *
-              </label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="e.g., John Doe"
-                className={errors.name ? 'border-red-500' : ''}
-              />
-              {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
-            </div>
+              <div>
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+                  Teacher Name *
+                </label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="e.g., John Doe"
+                  className={errors.name ? 'border-red-500' : ''}
+                />
+                {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
+              </div>
 
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                Email *
-              </label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="e.g., teacher@school.com"
-                className={errors.email ? 'border-red-500' : ''}
-              />
-              {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email}</p>}
-            </div>
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                  Email *
+                </label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  placeholder="e.g., teacher@school.com"
+                  className={errors.email ? 'border-red-500' : ''}
+                />
+                {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email}</p>}
+              </div>
 
-            <div>
-              <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-                Phone (Optional)
-              </label>
-              <Input
-                id="phone"
-                type="tel"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                placeholder="e.g., +234 801 234 5678"
-              />
-            </div>
+              <div>
+                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+                  Phone (Optional)
+                </label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  placeholder="e.g., +234 801 234 5678"
+                />
+              </div>
 
-            {/* Photo Upload */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Teacher Photo (Optional)
-              </label>
-              <div className="flex items-center gap-4">
-                {photoPreview ? (
-                  <img
-                    src={photoPreview}
-                    alt="Teacher photo preview"
-                    className="h-20 w-20 rounded-full object-cover border-2 border-gray-200"
-                  />
-                ) : (
-                  <div className="h-20 w-20 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 border-2 border-gray-200">
-                    <span className="text-3xl">👨‍🏫</span>
+              <div>
+                <label htmlFor="gender" className="block text-sm font-medium text-gray-700 mb-2">
+                  Gender (Optional)
+                </label>
+                <select
+                  id="gender"
+                  value={formData.gender}
+                  onChange={(e) => setFormData({ ...formData, gender: e.target.value as 'male' | 'female' | '' })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select Gender</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                </select>
+              </div>
+
+              {/* Photo Upload */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Teacher Photo (Optional)
+                </label>
+                <div className="flex items-center gap-4">
+                  {photoPreview ? (
+                    <img
+                      src={photoPreview}
+                      alt="Teacher photo preview"
+                      className="h-20 w-20 rounded-full object-cover border-2 border-gray-200"
+                    />
+                  ) : (
+                    <div className="h-20 w-20 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 border-2 border-gray-200">
+                      <span className="text-3xl">👨‍🏫</span>
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/jpg"
+                      onChange={handlePhotoSelect}
+                      className="hidden"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading}
+                    >
+                      <CloudArrowUpIcon className="h-4 w-4 mr-2" />
+                      {photoPreview ? 'Change Photo' : 'Upload Photo'}
+                    </Button>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Supported formats: JPG, PNG (max 2MB)
+                    </p>
                   </div>
-                )}
-                <div className="flex-1">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/png,image/jpeg,image/jpg"
-                    onChange={handlePhotoSelect}
-                    className="hidden"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploading}
-                  >
-                    <CloudArrowUpIcon className="h-4 w-4 mr-2" />
-                    {photoPreview ? 'Change Photo' : 'Upload Photo'}
-                  </Button>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Supported formats: JPG, PNG (max 2MB)
-                  </p>
                 </div>
+              </div>
+
+              {/* Bio */}
+              <div>
+                <label htmlFor="bio" className="block text-sm font-medium text-gray-700 mb-2">
+                  Biography (Optional)
+                </label>
+                <textarea
+                  id="bio"
+                  rows={3}
+                  value={formData.bio}
+                  onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                  placeholder="Brief biography about the teacher..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {/* Qualifications */}
+              <div>
+                <label htmlFor="qualifications" className="block text-sm font-medium text-gray-700 mb-2">
+                  Qualifications (Optional)
+                </label>
+                <Input
+                  id="qualifications"
+                  value={formData.qualifications}
+                  onChange={(e) => setFormData({ ...formData, qualifications: e.target.value })}
+                  placeholder="e.g., B.Ed., M.Sc. Mathematics"
+                />
               </div>
             </div>
 
-            {/* Bio */}
-            <div>
-              <label htmlFor="bio" className="block text-sm font-medium text-gray-700 mb-2">
-                Biography (Optional)
-              </label>
-              <textarea
-                id="bio"
-                rows={3}
-                value={formData.bio}
-                onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                placeholder="Brief biography about the teacher..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
+            {/* Class Teacher Assignment */}
+            <div className="space-y-4 pt-6 border-t">
+              <h3 className="text-lg font-semibold text-gray-900">Class Teacher Assignment</h3>
+              <p className="text-sm text-gray-600">
+                If this teacher is a class/form teacher, select their assigned class. Leave empty if they are only a subject teacher.
+              </p>
 
-            {/* Qualifications */}
-            <div>
-              <label htmlFor="qualifications" className="block text-sm font-medium text-gray-700 mb-2">
-                Qualifications (Optional)
-              </label>
-              <Input
-                id="qualifications"
-                value={formData.qualifications}
-                onChange={(e) => setFormData({ ...formData, qualifications: e.target.value })}
-                placeholder="e.g., B.Ed., M.Sc. Mathematics"
-              />
-            </div>
-
-            {/* Subjects */}
-            {subjects.length > 0 && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Subjects Taught (Optional)
+                <label htmlFor="classId" className="block text-sm font-medium text-gray-700 mb-2">
+                  Assigned Class (Optional)
                 </label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {subjects.map((subject) => (
-                    <label
-                      key={subject.id}
-                      className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={formData.subjectIds.includes(subject.id)}
-                        onChange={() => handleSubjectToggle(subject.id)}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      />
-                      <span className="ml-2 text-sm text-gray-700">
-                        {subject.name}
-                      </span>
-                    </label>
+                <select
+                  id="classId"
+                  value={formData.classId}
+                  onChange={(e) => setFormData({ ...formData, classId: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Not a class teacher</option>
+                  {classes.map(cls => (
+                    <option key={cls.id} value={cls.id}>{cls.name}</option>
                   ))}
-                </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  Select all subjects this teacher will teach
+                </select>
+              </div>
+            </div>
+
+            {/* Subject Teaching Assignments */}
+            {subjects.length > 0 && (
+              <div className="space-y-4 pt-6 border-t">
+                <h3 className="text-lg font-semibold text-gray-900">Subject Teaching Assignments</h3>
+                <p className="text-sm text-gray-600">
+                  Select the subjects this teacher teaches, then specify which classes they teach each subject to.
                 </p>
+
+                <div className="space-y-3">
+                  {subjects.map((subject) => {
+                    const isSelected = formData.subjectIds.includes(subject.id);
+                    const isExpanded = expandedSubjects.has(subject.id);
+                    const selectedClasses = formData.subjectClassMappings[subject.id] || [];
+
+                    return (
+                      <div key={subject.id} className="border rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                          <label className="flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => handleSubjectToggle(subject.id)}
+                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            />
+                            <span className="ml-3 text-sm font-medium text-gray-900">
+                              {subject.name} ({subject.code})
+                            </span>
+                          </label>
+
+                          {isSelected && (
+                            <button
+                              type="button"
+                              onClick={() => toggleSubjectExpansion(subject.id)}
+                              className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
+                            >
+                              {isExpanded ? (
+                                <>
+                                  <ChevronUpIcon className="h-4 w-4" />
+                                  <span>Hide Classes ({selectedClasses.length} selected)</span>
+                                </>
+                              ) : (
+                                <>
+                                  <ChevronDownIcon className="h-4 w-4" />
+                                  <span>Select Classes ({selectedClasses.length} selected)</span>
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </div>
+
+                        {isSelected && isExpanded && (
+                          <div className="mt-4 pl-7 space-y-2">
+                            <p className="text-xs text-gray-600 mb-2">
+                              Select which classes this teacher teaches {subject.name} to:
+                            </p>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                              {classes.map((cls) => (
+                                <label
+                                  key={cls.id}
+                                  className="flex items-center p-2 border rounded hover:bg-gray-50 cursor-pointer"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedClasses.includes(cls.id)}
+                                    onChange={() => handleSubjectClassToggle(subject.id, cls.id)}
+                                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                  />
+                                  <span className="ml-2 text-sm text-gray-700">{cls.name}</span>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
@@ -451,8 +595,8 @@ export default function NewTeacherPage() {
             )}
 
             <div className="flex gap-3 pt-4">
-              <Button type="submit" disabled={saving}>
-                {saving ? 'Saving...' : 'Save'}
+              <Button type="submit" disabled={saving || uploading}>
+                {saving ? 'Saving...' : 'Create Teacher'}
               </Button>
               <Button type="button" variant="outline" onClick={() => router.push('/dashboard/teachers')}>
                 Cancel
