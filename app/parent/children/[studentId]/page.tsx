@@ -36,6 +36,7 @@ interface Student {
   currentClassId: string;
   dateOfBirth: any;
   gender: string;
+  photoUrl?: string;
   guardianIds: string[];
 }
 
@@ -255,7 +256,15 @@ export default function ChildResultsPage() {
         <div className="flex items-start justify-between">
           <div className="flex items-center">
             <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mr-4">
-              <UserIcon className="h-8 w-8 text-blue-600" />
+              {student.photoUrl ? (
+                <img
+                  src={student.photoUrl}
+                  alt={`${student.firstName} ${student.lastName}`}
+                  className="w-16 h-16 rounded-full object-cover"
+                />
+              ) : (
+                <UserIcon className="h-8 w-8 text-blue-600" />
+              )}
             </div>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">
