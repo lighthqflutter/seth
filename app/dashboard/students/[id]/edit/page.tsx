@@ -1,14 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { doc, getDoc, updateDoc, query, where, getDocs, collection, Timestamp, orderBy } from 'firebase/firestore';
-import { db } from '@/lib/firebase/client';
+import { db, storage } from '@/lib/firebase/client';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 import { logAudit } from '@/lib/auditLogger';
+import { CloudArrowUpIcon, TrashIcon, UserPlusIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 interface FormData {
   firstName: string;
@@ -26,11 +28,20 @@ interface ClassOption {
   name: string;
 }
 
+interface ParentUser {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+}
+
 export default function EditStudentPage() {
   const router = useRouter();
   const params = useParams();
   const { user } = useAuth();
   const studentId = params?.id as string;
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [originalData, setOriginalData] = useState<FormData | null>(null);
@@ -48,6 +59,17 @@ export default function EditStudentPage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [classes, setClasses] = useState<ClassOption[]>([]);
+
+  // Photo upload state
+  const [photoUrl, setPhotoUrl] = useState<string>('');
+  const [uploading, setUploading] = useState(false);
+
+  // Guardian management state
+  const [guardianIds, setGuardianIds] = useState<string[]>([]);
+  const [guardians, setGuardians] = useState<ParentUser[]>([]);
+  const [availableParents, setAvailableParents] = useState<ParentUser[]>([]);
+  const [showAddGuardian, setShowAddGuardian] = useState(false);
+  const [updatingGuardians, setUpdatingGuardians] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -74,6 +96,13 @@ export default function EditStudentPage() {
         setFormData(initialData);
         setOriginalData(initialData);
 
+        // Set photo URL
+        setPhotoUrl(data.photoUrl || '');
+
+        // Set guardian IDs
+        const studentGuardianIds = data.guardianIds || [];
+        setGuardianIds(studentGuardianIds);
+
         // Load classes
         const tenantId = data.tenantId;
         const classesQuery = query(
@@ -87,6 +116,27 @@ export default function EditStudentPage() {
           name: doc.data().name,
         }));
         setClasses(classOptions);
+
+        // Load all parent users
+        const parentsQuery = query(
+          collection(db, 'users'),
+          where('tenantId', '==', tenantId),
+          where('role', '==', 'parent')
+        );
+        const parentsSnapshot = await getDocs(parentsQuery);
+        const parentsData = parentsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          name: doc.data().name,
+          email: doc.data().email,
+          phone: doc.data().phone,
+        })) as ParentUser[];
+
+        // Separate current guardians from available parents
+        const currentGuardians = parentsData.filter(p => studentGuardianIds.includes(p.id));
+        const available = parentsData.filter(p => !studentGuardianIds.includes(p.id));
+
+        setGuardians(currentGuardians);
+        setAvailableParents(available);
 
         setLoading(false);
       } catch (error) {
@@ -134,6 +184,242 @@ export default function EditStudentPage() {
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user?.tenantId) return;
+
+    // Validate file type
+    const validTypes = ['image/png', 'image/jpeg', 'image/jpg'];
+    if (!validTypes.includes(file.type)) {
+      alert('Please upload a valid image file (PNG or JPG)');
+      return;
+    }
+
+    // Validate file size (2MB)
+    const maxSize = 2 * 1024 * 1024; // 2MB
+    if (file.size > maxSize) {
+      alert(`Photo file size must be less than 2MB. Your file is ${(file.size / (1024 * 1024)).toFixed(1)}MB.`);
+      return;
+    }
+
+    setUploading(true);
+    try {
+      // Create a reference to the storage location
+      const fileExtension = file.name.split('.').pop();
+      const fileName = `students/${user.tenantId}/${studentId}/photo.${fileExtension}`;
+      const storageRef = ref(storage, fileName);
+
+      // Upload the file
+      await uploadBytes(storageRef, file);
+
+      // Get the download URL
+      const downloadURL = await getDownloadURL(storageRef);
+
+      // Update Firestore with the new photo URL
+      await updateDoc(doc(db, 'students', studentId), {
+        photoUrl: downloadURL,
+        updatedAt: new Date(),
+      });
+
+      setPhotoUrl(downloadURL);
+      alert('Photo uploaded successfully!');
+
+      // Audit log
+      if (user) {
+        await logAudit({
+          user: {
+            uid: user.uid,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            tenantId: user.tenantId,
+          },
+          action: 'update',
+          entityType: 'student',
+          entityId: studentId,
+          entityName: `${formData.firstName} ${formData.lastName}`,
+          metadata: { action: 'upload_photo' },
+        });
+      }
+    } catch (error) {
+      console.error('Error uploading photo:', error);
+      alert('Failed to upload photo. Please try again.');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleDeletePhoto = async () => {
+    if (!user?.tenantId || !photoUrl) return;
+
+    if (!confirm('Are you sure you want to delete this photo?')) return;
+
+    try {
+      // Delete from storage if it's a Firebase Storage URL
+      if (photoUrl.includes('firebasestorage.googleapis.com')) {
+        const extensions = ['png', 'jpg', 'jpeg'];
+        for (const ext of extensions) {
+          try {
+            const storageRef = ref(storage, `students/${user.tenantId}/${studentId}/photo.${ext}`);
+            await deleteObject(storageRef);
+          } catch (e) {
+            // Ignore errors - file might not exist with this extension
+          }
+        }
+      }
+
+      // Update Firestore to remove photoUrl
+      await updateDoc(doc(db, 'students', studentId), {
+        photoUrl: null,
+        updatedAt: new Date(),
+      });
+
+      setPhotoUrl('');
+      alert('Photo deleted successfully!');
+
+      // Audit log
+      if (user) {
+        await logAudit({
+          user: {
+            uid: user.uid,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            tenantId: user.tenantId,
+          },
+          action: 'update',
+          entityType: 'student',
+          entityId: studentId,
+          entityName: `${formData.firstName} ${formData.lastName}`,
+          metadata: { action: 'delete_photo' },
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting photo:', error);
+      alert('Failed to delete photo. Please try again.');
+    }
+  };
+
+  const handleAddGuardian = async (parentId: string) => {
+    if (!user) return;
+
+    const parent = availableParents.find(p => p.id === parentId);
+    if (!parent) return;
+
+    // Check limit of 3 guardians
+    if (guardianIds.length >= 3) {
+      alert('Maximum of 3 guardians allowed per student.');
+      return;
+    }
+
+    const confirmed = confirm(
+      `Link ${parent.name} (${parent.email}) as a guardian for ${formData.firstName} ${formData.lastName}?`
+    );
+    if (!confirmed) return;
+
+    setUpdatingGuardians(true);
+
+    try {
+      const updatedGuardianIds = [...guardianIds, parentId];
+
+      await updateDoc(doc(db, 'students', studentId), {
+        guardianIds: updatedGuardianIds,
+        updatedAt: new Date(),
+      });
+
+      // Audit log
+      await logAudit({
+        user: {
+          uid: user.uid,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          tenantId: user.tenantId,
+        },
+        action: 'update',
+        entityType: 'student',
+        entityId: studentId,
+        entityName: `${formData.firstName} ${formData.lastName}`,
+        metadata: {
+          action: 'add_guardian',
+          guardianId: parentId,
+          guardianName: parent.name,
+        },
+      });
+
+      // Update local state
+      setGuardians([...guardians, parent]);
+      setAvailableParents(availableParents.filter(p => p.id !== parentId));
+      setGuardianIds(updatedGuardianIds);
+      setShowAddGuardian(false);
+
+      alert('Guardian linked successfully!');
+    } catch (error: any) {
+      console.error('Error adding guardian:', error);
+      alert('Failed to link guardian. Please try again.');
+    } finally {
+      setUpdatingGuardians(false);
+    }
+  };
+
+  const handleRemoveGuardian = async (parentId: string) => {
+    if (!user) return;
+
+    const parent = guardians.find(g => g.id === parentId);
+    if (!parent) return;
+
+    const confirmed = confirm(
+      `Remove ${parent.name} as a guardian for ${formData.firstName} ${formData.lastName}? They will no longer be able to view this student's results.`
+    );
+    if (!confirmed) return;
+
+    setUpdatingGuardians(true);
+
+    try {
+      const updatedGuardianIds = guardianIds.filter(id => id !== parentId);
+
+      await updateDoc(doc(db, 'students', studentId), {
+        guardianIds: updatedGuardianIds,
+        updatedAt: new Date(),
+      });
+
+      // Audit log
+      await logAudit({
+        user: {
+          uid: user.uid,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          tenantId: user.tenantId,
+        },
+        action: 'update',
+        entityType: 'student',
+        entityId: studentId,
+        entityName: `${formData.firstName} ${formData.lastName}`,
+        metadata: {
+          action: 'remove_guardian',
+          guardianId: parentId,
+          guardianName: parent.name,
+        },
+      });
+
+      // Update local state
+      setGuardians(guardians.filter(g => g.id !== parentId));
+      setAvailableParents([...availableParents, parent]);
+      setGuardianIds(updatedGuardianIds);
+
+      alert('Guardian unlinked successfully!');
+    } catch (error: any) {
+      console.error('Error removing guardian:', error);
+      alert('Failed to unlink guardian. Please try again.');
+    } finally {
+      setUpdatingGuardians(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -257,18 +543,59 @@ export default function EditStudentPage() {
             <div className="space-y-4">
               <h2 className="text-lg font-semibold text-gray-900 border-b pb-2">Personal Information</h2>
 
-              {/* Photo Upload Placeholder */}
+              {/* Photo Upload */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Student Photo (Optional)
                 </label>
                 <div className="flex items-center gap-4">
-                  <div className="h-24 w-24 rounded-full bg-gray-100 flex items-center justify-center text-gray-400">
-                    <span className="text-3xl">📷</span>
-                  </div>
-                  <div className="text-sm text-gray-600">
-                    <p className="mb-1">Photo upload will be available soon</p>
-                    <p className="text-xs text-gray-500">Supported formats: JPG, PNG (max 2MB)</p>
+                  {photoUrl ? (
+                    <img
+                      src={photoUrl}
+                      alt="Student photo"
+                      className="h-24 w-24 rounded-full object-cover border-2 border-gray-200"
+                    />
+                  ) : (
+                    <div className="h-24 w-24 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 border-2 border-gray-200">
+                      <span className="text-3xl">👤</span>
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/jpg"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploading}
+                      >
+                        <CloudArrowUpIcon className="h-4 w-4 mr-2" />
+                        {uploading ? 'Uploading...' : photoUrl ? 'Change Photo' : 'Upload Photo'}
+                      </Button>
+                      {photoUrl && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={handleDeletePhoto}
+                          disabled={uploading}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <TrashIcon className="h-4 w-4 mr-2" />
+                          Delete
+                        </Button>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Supported formats: JPG, PNG (max 2MB)
+                    </p>
                   </div>
                 </div>
               </div>
@@ -403,6 +730,102 @@ export default function EditStudentPage() {
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                 />
+              </div>
+            </div>
+
+            {/* Guardian/Parent Linking Section */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between border-b pb-2">
+                <h2 className="text-lg font-semibold text-gray-900">Parent/Guardian Accounts</h2>
+                {guardianIds.length < 3 && availableParents.length > 0 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAddGuardian(!showAddGuardian)}
+                  >
+                    <UserPlusIcon className="h-4 w-4 mr-2" />
+                    Link Guardian
+                  </Button>
+                )}
+              </div>
+
+              {/* Current Guardians */}
+              {guardians.length > 0 ? (
+                <div className="space-y-2">
+                  {guardians.map((guardian) => (
+                    <div
+                      key={guardian.id}
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border"
+                    >
+                      <div>
+                        <p className="font-medium text-gray-900">{guardian.name}</p>
+                        <p className="text-sm text-gray-600">{guardian.email}</p>
+                        {guardian.phone && (
+                          <p className="text-sm text-gray-500">{guardian.phone}</p>
+                        )}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleRemoveGuardian(guardian.id)}
+                        disabled={updatingGuardians}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        <XMarkIcon className="h-4 w-4 mr-1" />
+                        Unlink
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm text-yellow-800">
+                    ⚠️ No parent/guardian accounts linked to this student. Parents will not be able to view results.
+                  </p>
+                </div>
+              )}
+
+              {/* Add Guardian Dropdown */}
+              {showAddGuardian && availableParents.length > 0 && (
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-3">
+                  <p className="text-sm font-medium text-blue-900">
+                    Select a parent/guardian account to link:
+                  </p>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {availableParents.map((parent) => (
+                      <button
+                        key={parent.id}
+                        type="button"
+                        onClick={() => handleAddGuardian(parent.id)}
+                        disabled={updatingGuardians}
+                        className="w-full flex items-center justify-between p-3 bg-white rounded border hover:border-blue-500 hover:bg-blue-50 transition-colors disabled:opacity-50"
+                      >
+                        <div className="text-left">
+                          <p className="font-medium text-gray-900">{parent.name}</p>
+                          <p className="text-sm text-gray-600">{parent.email}</p>
+                        </div>
+                        <UserPlusIcon className="h-5 w-5 text-gray-400" />
+                      </button>
+                    ))}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAddGuardian(false)}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              )}
+
+              {/* Info about guardian limit */}
+              <div className="text-xs text-gray-500">
+                <p>• Students can be linked to up to 3 parent/guardian accounts</p>
+                <p>• Linked guardians can view student results and attendance</p>
+                <p>• You can unlink guardians if they were added by mistake</p>
               </div>
             </div>
 
