@@ -15,6 +15,10 @@ interface Teacher {
   name: string;
   email: string;
   phone?: string;
+  photoUrl?: string;
+  bio?: string;
+  qualifications?: string;
+  subjectIds?: string[];
   role: 'teacher';
   isActive: boolean;
   createdAt: {
@@ -247,17 +251,25 @@ export default function TeachersPage() {
             <Card key={teacher.id} className="hover:shadow-md transition-shadow">
               <CardContent className="p-6">
                 <div className="flex items-start gap-4">
-                  {/* Teacher Icon */}
+                  {/* Teacher Photo */}
                   <div className="flex-shrink-0">
-                    <div
-                      className={`h-12 w-12 rounded-full flex items-center justify-center ${
-                        teacher.isActive
-                          ? 'bg-blue-100 text-blue-600'
-                          : 'bg-gray-100 text-gray-400'
-                      }`}
-                    >
-                      <span className="text-2xl">👨‍🏫</span>
-                    </div>
+                    {teacher.photoUrl ? (
+                      <img
+                        src={teacher.photoUrl}
+                        alt={teacher.name}
+                        className="h-12 w-12 rounded-full object-cover border-2 border-gray-200"
+                      />
+                    ) : (
+                      <div
+                        className={`h-12 w-12 rounded-full flex items-center justify-center ${
+                          teacher.isActive
+                            ? 'bg-blue-100 text-blue-600'
+                            : 'bg-gray-100 text-gray-400'
+                        }`}
+                      >
+                        <span className="text-2xl">👨‍🏫</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Teacher Info */}
@@ -271,6 +283,11 @@ export default function TeachersPage() {
                       )}
                     </div>
                     <div className="mt-1 text-sm text-gray-600 space-y-1">
+                      {teacher.qualifications && (
+                        <div className="text-blue-600 font-medium">
+                          {teacher.qualifications}
+                        </div>
+                      )}
                       <div>
                         <span className="font-medium">Email:</span> {teacher.email}
                       </div>
@@ -279,33 +296,47 @@ export default function TeachersPage() {
                           <span className="font-medium">Phone:</span> {teacher.phone}
                         </div>
                       )}
+                      {teacher.subjectIds && teacher.subjectIds.length > 0 && (
+                        <div className="text-xs text-gray-500">
+                          Teaching {teacher.subjectIds.length} {teacher.subjectIds.length === 1 ? 'subject' : 'subjects'}
+                        </div>
+                      )}
                     </div>
                   </div>
 
                   {/* Actions */}
-                  {user?.role === 'admin' && (
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => router.push(`/dashboard/teachers/${teacher.id}/edit`)}
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          handleToggleActive(teacher.id, teacher.name, teacher.isActive)
-                        }
-                        className={
-                          teacher.isActive ? 'text-red-600 hover:bg-red-50' : 'text-green-600 hover:bg-green-50'
-                        }
-                      >
-                        {teacher.isActive ? 'Deactivate' : 'Activate'}
-                      </Button>
-                    </div>
-                  )}
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => router.push(`/dashboard/teachers/${teacher.id}`)}
+                    >
+                      View Profile
+                    </Button>
+                    {user?.role === 'admin' && (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => router.push(`/dashboard/teachers/${teacher.id}/edit`)}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            handleToggleActive(teacher.id, teacher.name, teacher.isActive)
+                          }
+                          className={
+                            teacher.isActive ? 'text-red-600 hover:bg-red-50' : 'text-green-600 hover:bg-green-50'
+                          }
+                        >
+                          {teacher.isActive ? 'Deactivate' : 'Activate'}
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>

@@ -290,6 +290,9 @@ export interface User {
   role: 'superadmin' | 'admin' | 'teacher' | 'parent';
   phone?: string;
   photoUrl?: string;
+  subjectIds?: string[]; // Subjects taught by teacher (only for role='teacher')
+  bio?: string; // Short biography (for teachers)
+  qualifications?: string; // Educational qualifications (for teachers)
   isActive: boolean;
   mustChangePassword?: boolean; // Force password change on first login
   lastPasswordChange?: Timestamp; // Track password change history
