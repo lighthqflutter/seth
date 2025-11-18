@@ -160,9 +160,10 @@ export default function GuardiansPage() {
       guardian.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       guardian.phone.includes(searchTerm);
 
-    // Relationship filter
+    // Relationship filter (case-insensitive comparison)
     const matchesRelationship =
-      filterRelationship === 'all' || guardian.relationshipType === filterRelationship;
+      filterRelationship === 'all' ||
+      guardian.relationshipType?.toLowerCase() === filterRelationship.toLowerCase();
 
     return matchesSearch && matchesRelationship;
   });
@@ -174,7 +175,7 @@ export default function GuardiansPage() {
       legal_guardian: 'Legal Guardian',
       other: 'Other',
     };
-    return labels[type] || 'Other';
+    return labels[type?.toLowerCase()] || 'Other';
   };
 
   const getRelationshipBadgeColor = (type: string) => {
@@ -184,7 +185,7 @@ export default function GuardiansPage() {
       legal_guardian: 'bg-purple-100 text-purple-800',
       other: 'bg-gray-100 text-gray-800',
     };
-    return colors[type] || 'bg-gray-100 text-gray-800';
+    return colors[type?.toLowerCase()] || 'bg-gray-100 text-gray-800';
   };
 
   if (loading) {
@@ -228,7 +229,7 @@ export default function GuardiansPage() {
             <div>
               <p className="text-sm text-gray-600">Fathers</p>
               <p className="text-2xl font-bold text-blue-600 mt-1">
-                {guardians.filter(g => g.relationshipType === 'father').length}
+                {guardians.filter(g => g.relationshipType?.toLowerCase() === 'father').length}
               </p>
             </div>
           </CardContent>
@@ -239,7 +240,7 @@ export default function GuardiansPage() {
             <div>
               <p className="text-sm text-gray-600">Mothers</p>
               <p className="text-2xl font-bold text-pink-600 mt-1">
-                {guardians.filter(g => g.relationshipType === 'mother').length}
+                {guardians.filter(g => g.relationshipType?.toLowerCase() === 'mother').length}
               </p>
             </div>
           </CardContent>

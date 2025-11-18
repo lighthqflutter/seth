@@ -153,10 +153,18 @@ export default function StudentDetailPage() {
           <div className="flex items-start gap-6">
             {/* Photo */}
             <div className="flex-shrink-0">
-              <div className="h-24 w-24 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-semibold text-2xl">
-                {student.firstName[0]}
-                {student.lastName[0]}
-              </div>
+              {student.photoUrl ? (
+                <img
+                  src={student.photoUrl}
+                  alt={fullName}
+                  className="h-24 w-24 rounded-full object-cover border-2 border-gray-200"
+                />
+              ) : (
+                <div className="h-24 w-24 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-semibold text-2xl border-2 border-gray-200">
+                  {student.firstName[0]}
+                  {student.lastName[0]}
+                </div>
+              )}
             </div>
 
             {/* Basic Info */}
