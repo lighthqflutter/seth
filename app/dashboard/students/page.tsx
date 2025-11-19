@@ -8,7 +8,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { UserIcon } from '@heroicons/react/24/outline';
+import { UserIcon, AcademicCapIcon } from '@heroicons/react/24/outline';
+import PromotionSubmissionModal from '@/components/promotion/PromotionSubmissionModal';
+import { PromotionCampaign } from '@/types';
 
 interface Student {
   id: string;
@@ -29,6 +31,7 @@ interface Student {
 interface ClassOption {
   id: string;
   name: string;
+  teacherId?: string;
 }
 
 export default function StudentsPage() {
@@ -45,7 +48,12 @@ export default function StudentsPage() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [classes, setClasses] = useState<ClassOption[]>([]);
 
-  // Load classes
+  // Promotion states
+  const [promotionModalOpen, setPromotionModalOpen] = useState(false);
+  const [activeCampaigns, setActiveCampaigns] = useState<PromotionCampaign[]>([]);
+  const [userManagedClass, setUserManagedClass] = useState<ClassOption | null>(null);
+
+  // Load classes and check if user is a class teacher
   useEffect(() => {
     if (!user?.tenantId) return;
 
@@ -60,14 +68,46 @@ export default function StudentsPage() {
         const classesData = classesSnapshot.docs.map(doc => ({
           id: doc.id,
           name: doc.data().name,
+          teacherId: doc.data().teacherId,
         })) as ClassOption[];
         setClasses(classesData);
+
+        // Check if user is a class teacher
+        if (user.role === 'teacher') {
+          const managedClass = classesData.find(cls => cls.teacherId === user.uid);
+          setUserManagedClass(managedClass || null);
+        }
       } catch (error) {
         console.error('Error loading classes:', error);
       }
     };
 
     loadClasses();
+  }, [user?.tenantId, user?.uid, user?.role]);
+
+  // Load active promotion campaigns
+  useEffect(() => {
+    if (!user?.tenantId) return;
+
+    const loadActiveCampaigns = async () => {
+      try {
+        const campaignsQuery = query(
+          collection(db, 'promotion_campaigns'),
+          where('tenantId', '==', user.tenantId),
+          where('status', '==', 'open')
+        );
+        const campaignsSnapshot = await getDocs(campaignsQuery);
+        const campaignsData = campaignsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as PromotionCampaign[];
+        setActiveCampaigns(campaignsData);
+      } catch (error) {
+        console.error('Error loading campaigns:', error);
+      }
+    };
+
+    loadActiveCampaigns();
   }, [user?.tenantId]);
 
   // Load students
@@ -164,6 +204,12 @@ export default function StudentsPage() {
     );
   }
 
+  // Check if promotion button should be shown
+  const showPromotionButton =
+    userManagedClass &&
+    activeCampaigns.length > 0 &&
+    user?.role === 'teacher';
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -174,11 +220,22 @@ export default function StudentsPage() {
             {filteredStudents.length} {filteredStudents.length === 1 ? 'student' : 'students'}
           </p>
         </div>
-        {user?.role === 'admin' && (
-          <Button onClick={() => router.push('/dashboard/students/new')}>
-            Add Student
-          </Button>
-        )}
+        <div className="flex gap-3">
+          {showPromotionButton && (
+            <Button
+              onClick={() => setPromotionModalOpen(true)}
+              className="bg-purple-600 hover:bg-purple-700"
+            >
+              <AcademicCapIcon className="h-5 w-5 mr-2" />
+              Promote Class
+            </Button>
+          )}
+          {user?.role === 'admin' && (
+            <Button onClick={() => router.push('/dashboard/students/new')}>
+              Add Student
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Search and Filters */}
@@ -363,6 +420,21 @@ export default function StudentsPage() {
             </Card>
           ))}
         </div>
+      )}
+
+      {/* Promotion Submission Modal */}
+      {showPromotionButton && userManagedClass && activeCampaigns[0] && (
+        <PromotionSubmissionModal
+          isOpen={promotionModalOpen}
+          onClose={() => setPromotionModalOpen(false)}
+          classId={userManagedClass.id}
+          className={userManagedClass.name}
+          campaignId={activeCampaigns[0].id}
+          campaignName={activeCampaigns[0].name}
+          userId={user!.uid}
+          userName={user!.name}
+          tenantId={user!.tenantId}
+        />
       )}
     </div>
   );

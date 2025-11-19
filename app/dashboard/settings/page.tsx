@@ -21,6 +21,12 @@ export default function SettingsPage() {
       href: '/dashboard/settings/email-preferences',
     },
     {
+      title: 'Student Promotion',
+      description: 'Configure promotion criteria and graduation settings',
+      icon: '🎓',
+      href: '/dashboard/settings/promotion',
+    },
+    {
       title: 'Academic Settings',
       description: 'Configure grading, terms, and academic calendar',
       icon: '📚',

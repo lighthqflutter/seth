@@ -181,6 +181,79 @@ export interface ClassLevelConfig {
   };
 }
 
+export interface PromotionSettings {
+  // Promotion mode
+  mode: 'automatic' | 'manual' | 'hybrid';
+  allowManualOverride: boolean;
+
+  // Automatic criteria (applies if mode = automatic/hybrid)
+  criteria?: {
+    passMark: number; // e.g., 40
+    minimumAverageScore?: {
+      enabled: boolean;
+      value: number; // e.g., 50
+    };
+    minimumSubjectsPassed?: {
+      enabled: boolean;
+      value: number; // e.g., 5
+    };
+    coreSubjectsRequirement?: {
+      enabled: boolean;
+      type: 'all' | 'minimum'; // All core subjects OR minimum N core subjects
+      minimumRequired?: number; // If type = 'minimum'
+      coreSubjectIds: string[]; // IDs of core subjects
+    };
+    attendanceRequirement?: {
+      enabled: boolean;
+      minimumPercentage: number; // e.g., 75
+    };
+  };
+
+  // Class progression mapping
+  levelMapping: {
+    [level: string]: string; // e.g., { "JSS1": "JSS2", "SS3": "GRADUATED" }
+  };
+
+  // Graduation settings
+  graduation: {
+    graduatingLevels: string[]; // e.g., ["SS3", "Primary6"]
+    requirements: {
+      passAllCoreSubjects: boolean;
+      minimumAverageScore?: number;
+      minimumAttendance?: number;
+      noOutstandingFees?: boolean;
+    };
+    failureAction: 'repeat' | 'conditional' | 'manual'; // What happens if student doesn't meet requirements
+    postGraduation: {
+      studentStatus: 'graduated' | 'archived' | 'deleted';
+      keepRecords: boolean;
+      allowAlumniAccess: boolean;
+      generateCertificate: boolean;
+      generateTranscript: boolean;
+    };
+  };
+
+  // Workflow
+  workflow: {
+    teachersCanPromote: boolean;
+    requireApproval: boolean; // If true, teachers submit for admin approval
+  };
+
+  // Notifications
+  notifications: {
+    emailParents: boolean;
+    emailStudents: boolean;
+    notifyAdmins: boolean;
+  };
+
+  // Academic year transition
+  academicYearTransition: {
+    createNewYear: boolean;
+    effectiveDate?: string; // ISO date string
+    newAcademicYear?: string;
+  };
+}
+
 export interface ScoreEntryConfig {
   entryMethod: 'percentage' | 'points' | 'grade';
   validation: {
@@ -221,6 +294,9 @@ export interface TenantSettings {
 
   // Score Entry
   scoreEntry: ScoreEntryConfig;
+
+  // Promotion (NEW)
+  promotion?: PromotionSettings;
 
   // Notifications
   notifications?: {
@@ -316,6 +392,22 @@ export interface Student {
   medicalInfo?: Record<string, any>;
   admissionDate: Timestamp;
   isActive: boolean;
+
+  // Status (updated to include graduation)
+  status?: 'active' | 'inactive' | 'graduated' | 'transferred' | 'expelled';
+
+  // Graduation fields (NEW)
+  graduatedAt?: Timestamp;
+  graduationYear?: string; // e.g., "2025"
+  graduationClass?: string; // e.g., "SS 3A"
+  finalAverage?: number; // Final year average
+  finalPosition?: number; // Position in graduating class
+  certificateUrl?: string; // Generated graduation certificate
+  transcriptUrl?: string; // Final transcript
+
+  // Promotion history (NEW)
+  promotionHistory?: string[]; // Array of promotion record IDs
+
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -492,4 +584,155 @@ export interface AuditLog {
   errorMessage?: string; // If action failed
   timestamp: Timestamp;
   createdAt: Timestamp;
+}
+
+// ============================================
+// PROMOTION SYSTEM INTERFACES
+// ============================================
+
+export interface PromotionCampaign {
+  id: string;
+  tenantId: string;
+  name: string; // e.g., "End of Year 2024/2025"
+  academicYear: string; // Current year, e.g., "2024/2025"
+  newAcademicYear: string; // Target year, e.g., "2025/2026"
+  termId: string; // Term this promotion is for
+  status: 'draft' | 'open' | 'in_review' | 'approved' | 'executed' | 'cancelled';
+
+  // Deadlines
+  submissionDeadline?: Timestamp; // When teachers must submit by
+  executionDate?: Timestamp; // When promotion will be executed
+
+  // Progress tracking
+  totalClasses: number;
+  submittedClasses: number;
+  approvedClasses: number;
+  totalStudents: number;
+  processedStudents: number;
+
+  // Created by
+  createdBy: string; // Admin userId
+  createdByName: string;
+
+  // Execution tracking
+  executedBy?: string;
+  executedByName?: string;
+  executedAt?: Timestamp;
+  executionId?: string; // Reference to PromotionExecution
+
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface PromotionRecord {
+  id: string;
+  tenantId: string;
+  campaignId: string;
+
+  // Student info
+  studentId: string;
+  studentName: string;
+  admissionNumber: string;
+
+  // Source class
+  fromClassId: string;
+  fromClassName: string;
+  fromClassLevel: string; // e.g., "JSS1"
+
+  // Target class
+  toClassId: string;
+  toClassName: string;
+  toClassLevel: string; // e.g., "JSS2" or "GRADUATED"
+
+  // Decision
+  decision: 'promote' | 'repeat' | 'graduate' | 'conditional';
+  eligibility: 'auto_eligible' | 'auto_ineligible' | 'manual_override' | 'manual_decision';
+
+  // Performance data
+  averageScore: number;
+  totalSubjects: number;
+  subjectsPassed: number;
+  subjectsFailedList: string[]; // Subject names
+  failedCoreSubjects: string[]; // Core subject names failed
+  attendance?: number; // Percentage
+
+  // Criteria evaluation
+  criteriaResults?: {
+    passedMinimumAverage: boolean;
+    passedMinimumSubjects: boolean;
+    passedCoreSubjects: boolean;
+    passedAttendance: boolean;
+  };
+
+  // Notes & overrides
+  teacherNotes?: string;
+  adminNotes?: string;
+  overrideReason?: string; // Required if manual override
+
+  // Conditional promotion
+  condition?: {
+    type: string; // e.g., "remedial_exam", "summer_school"
+    description: string;
+    deadline?: Timestamp;
+    status: 'pending' | 'met' | 'failed';
+  };
+
+  // Workflow
+  status: 'draft' | 'submitted' | 'approved' | 'rejected' | 'executed';
+  submittedBy?: string; // Teacher userId
+  submittedByName?: string;
+  submittedAt?: Timestamp;
+  approvedBy?: string; // Admin userId
+  approvedByName?: string;
+  approvedAt?: Timestamp;
+  executedAt?: Timestamp;
+
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface PromotionExecution {
+  id: string;
+  campaignId: string;
+  tenantId: string;
+  status: 'queued' | 'processing' | 'completed' | 'failed' | 'paused';
+
+  // Progress tracking
+  totalStudents: number;
+  processedStudents: number;
+  successCount: number;
+  failedCount: number;
+
+  // Batching
+  batchSize: number; // e.g., 50 students per batch
+  currentBatch: number;
+  totalBatches: number;
+
+  // Results breakdown
+  results: {
+    promoted: number;
+    repeated: number;
+    graduated: number;
+    failed: number;
+  };
+
+  // Execution details
+  startedAt?: Timestamp;
+  completedAt?: Timestamp;
+  estimatedTimeRemaining?: number; // seconds
+
+  // Error tracking
+  errors: Array<{
+    studentId: string;
+    studentName: string;
+    error: string;
+    timestamp: Timestamp;
+  }>;
+
+  // Executed by
+  executedBy: string; // Admin userId
+  executedByName: string;
+
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 }
