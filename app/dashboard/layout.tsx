@@ -73,7 +73,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
     { name: 'Analytics', href: '/dashboard/analytics', icon: '📈', roles: ['admin'] },
     { name: 'Users', href: '/dashboard/admin/users', icon: '👤', roles: ['admin'] },
     { name: 'Audit Logs', href: '/dashboard/audit', icon: '📋', roles: ['admin'] },
-    { name: 'Settings', href: '/dashboard/settings/email-preferences', icon: '⚙️', roles: ['admin'] },
+    { name: 'Settings', href: '/dashboard/settings', icon: '⚙️', roles: ['admin'] },
   ];
 
   // Choose navigation based on user role and filter
