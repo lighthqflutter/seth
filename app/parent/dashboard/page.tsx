@@ -31,6 +31,7 @@ import {
   PhoneIcon,
   EnvelopeIcon,
   MapPinIcon,
+  BanknotesIcon,
 } from '@heroicons/react/24/outline';
 
 interface Student {
@@ -282,16 +283,25 @@ export default function ParentDashboard() {
             {guardianInfo ? `Welcome, ${guardianInfo.name}` : "View your children's academic progress"}
           </p>
         </div>
-        {children.length > 1 && (
+        <div className="flex gap-2">
           <Button
-            onClick={handleDownloadAllReports}
-            disabled={downloadingAll}
+            onClick={() => router.push('/parent/fees')}
             variant="outline"
           >
-            <ArrowDownTrayIcon className="h-5 w-5 mr-2" />
-            {downloadingAll ? 'Downloading...' : 'Download All Reports'}
+            <BanknotesIcon className="h-5 w-5 mr-2" />
+            Fees & Payments
           </Button>
-        )}
+          {children.length > 1 && (
+            <Button
+              onClick={handleDownloadAllReports}
+              disabled={downloadingAll}
+              variant="outline"
+            >
+              <ArrowDownTrayIcon className="h-5 w-5 mr-2" />
+              {downloadingAll ? 'Downloading...' : 'Download All Reports'}
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Guardian Profile Card */}
@@ -451,6 +461,14 @@ export default function ParentDashboard() {
                   >
                     <UserIcon className="h-5 w-5 mr-2" />
                     View Profile
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => router.push('/parent/fees')}
+                  >
+                    <BanknotesIcon className="h-5 w-5 mr-2" />
+                    View Fees
                   </Button>
                 </div>
               </CardContent>

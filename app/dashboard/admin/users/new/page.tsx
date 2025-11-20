@@ -13,7 +13,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -28,7 +28,7 @@ interface FormData {
   name: string;
   email: string;
   phone: string;
-  role: 'admin' | '';
+  role: 'admin' | 'finance';
   isActive: boolean;
 }
 
@@ -41,14 +41,20 @@ interface FormErrors {
 
 export default function NewUserPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuth();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  // Get role from query parameter, default to 'admin'
+  const roleParam = searchParams.get('role');
+  const initialRole = (roleParam === 'finance' ? 'finance' : 'admin') as 'admin' | 'finance';
+
   const [formData, setFormData] = useState<FormData>({
     name: '',
     email: '',
     phone: '',
-    role: 'admin',
+    role: initialRole,
     isActive: true,
   });
   const [errors, setErrors] = useState<FormErrors>({});
@@ -77,8 +83,8 @@ export default function NewUserPage() {
       newErrors.email = 'Invalid email format';
     }
 
-    // Role validation (should always be admin)
-    if (formData.role !== 'admin') {
+    // Role validation (should be admin or finance)
+    if (formData.role !== 'admin' && formData.role !== 'finance') {
       newErrors.role = 'Invalid role';
     }
 
@@ -252,8 +258,14 @@ export default function NewUserPage() {
           <ArrowLeftIcon className="h-4 w-4 mr-1" />
           Back to Users
         </button>
-        <h1 className="text-2xl font-bold text-gray-900">Create New Admin User</h1>
-        <p className="text-gray-600 mt-1">Add a new administrator to your school system</p>
+        <h1 className="text-2xl font-bold text-gray-900">
+          Create New {formData.role === 'finance' ? 'Finance' : 'Admin'} User
+        </h1>
+        <p className="text-gray-600 mt-1">
+          {formData.role === 'finance'
+            ? 'Add a new finance user to manage fees and payments'
+            : 'Add a new administrator to your school system'}
+        </p>
       </div>
 
       {/* Error Alert */}
@@ -325,18 +337,47 @@ export default function NewUserPage() {
                 )}
               </div>
 
-              {/* Role - Hidden, defaults to admin */}
-              <input type="hidden" name="role" value="admin" />
-
-              {/* Admin Role Info */}
-              <div className="p-4 bg-purple-50 border border-purple-200 rounded-md">
-                <p className="text-sm font-medium text-purple-900 mb-1">
-                  Administrator Role
-                </p>
-                <p className="text-sm text-purple-700">
-                  Administrators have full system access and can manage all aspects including users, students, classes, scores, and reports.
-                </p>
+              {/* Role Selection */}
+              <div>
+                <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
+                  User Role <span className="text-red-500">*</span>
+                </label>
+                <select
+                  id="role"
+                  value={formData.role}
+                  onChange={(e) => handleChange('role', e.target.value as 'admin' | 'finance')}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="admin">Administrator</option>
+                  <option value="finance">Finance</option>
+                </select>
+                {errors.role && (
+                  <p className="mt-1 text-sm text-red-600">{errors.role}</p>
+                )}
               </div>
+
+              {/* Role Info */}
+              {formData.role === 'admin' && (
+                <div className="p-4 bg-purple-50 border border-purple-200 rounded-md">
+                  <p className="text-sm font-medium text-purple-900 mb-1">
+                    Administrator Role
+                  </p>
+                  <p className="text-sm text-purple-700">
+                    Administrators have full system access and can manage all aspects including users, students, classes, scores, and reports.
+                  </p>
+                </div>
+              )}
+
+              {formData.role === 'finance' && (
+                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+                  <p className="text-sm font-medium text-yellow-900 mb-1">
+                    Finance Role
+                  </p>
+                  <p className="text-sm text-yellow-700">
+                    Finance users can manage all fee-related operations including creating bills, reviewing bank transfer payments, approving/rejecting payments, and generating receipts.
+                  </p>
+                </div>
+              )}
 
               {/* Info about other user types */}
               <div className="p-4 bg-blue-50 border border-blue-200 rounded-md">

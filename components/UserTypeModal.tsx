@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { XMarkIcon, UserIcon, AcademicCapIcon, UserGroupIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, UserIcon, AcademicCapIcon, UserGroupIcon, CurrencyDollarIcon } from '@heroicons/react/24/outline';
 
 interface UserTypeModalProps {
   isOpen: boolean;
@@ -46,7 +46,7 @@ export default function UserTypeModal({ isOpen, onClose }: UserTypeModalProps) {
           </div>
 
           {/* Options */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {/* Admin Option */}
             <button
               onClick={() => handleSelection('/dashboard/admin/users/new')}
@@ -57,7 +57,21 @@ export default function UserTypeModal({ isOpen, onClose }: UserTypeModalProps) {
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Admin</h3>
               <p className="text-sm text-gray-600 text-center">
-                System administrators with full access to all features
+                Full system access
+              </p>
+            </button>
+
+            {/* Finance Option */}
+            <button
+              onClick={() => handleSelection('/dashboard/admin/users/new?role=finance')}
+              className="flex flex-col items-center p-6 border-2 border-gray-200 rounded-lg hover:border-yellow-500 hover:bg-yellow-50 transition-all group"
+            >
+              <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mb-4 group-hover:bg-yellow-200 transition-colors">
+                <CurrencyDollarIcon className="h-8 w-8 text-yellow-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Finance</h3>
+              <p className="text-sm text-gray-600 text-center">
+                Fee management
               </p>
             </button>
 
@@ -71,7 +85,7 @@ export default function UserTypeModal({ isOpen, onClose }: UserTypeModalProps) {
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Teacher</h3>
               <p className="text-sm text-gray-600 text-center">
-                Teachers with class and subject assignments
+                Class & subjects
               </p>
             </button>
 
@@ -83,9 +97,9 @@ export default function UserTypeModal({ isOpen, onClose }: UserTypeModalProps) {
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4 group-hover:bg-green-200 transition-colors">
                 <UserGroupIcon className="h-8 w-8 text-green-600" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Parent/Guardian</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Parent</h3>
               <p className="text-sm text-gray-600 text-center">
-                Parents or guardians linked to students
+                Student guardians
               </p>
             </button>
           </div>
