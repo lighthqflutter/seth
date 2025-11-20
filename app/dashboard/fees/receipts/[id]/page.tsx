@@ -8,8 +8,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -71,81 +69,37 @@ export default function ReceiptPage({ params }: ReceiptPageProps) {
     try {
       setLoading(true);
 
-      // Try to load as payment ID first
-      let paymentData: Payment | null = null;
-      const paymentDoc = await getDoc(doc(db, 'payments', receiptId));
+      // Use API route to fetch receipt data (avoids Firestore permission issues)
+      const response = await fetch(
+        `/api/payments/receipt/${receiptId}?tenantId=${user.tenantId}&userId=${user.uid}`
+      );
 
-      if (paymentDoc.exists()) {
-        // Direct payment ID was provided
-        paymentData = { id: paymentDoc.id, ...paymentDoc.data() } as Payment;
-      } else {
-        // Try loading as studentFeeId - get most recent payment for this fee
-        const { query, collection, where, orderBy: firestoreOrderBy, getDocs, limit } = await import('firebase/firestore');
-        const paymentsQuery = query(
-          collection(db, 'payments'),
-          where('studentFeeId', '==', receiptId),
-          where('tenantId', '==', user.tenantId),
-          firestoreOrderBy('paymentDate', 'desc'),
-          limit(1)
-        );
-        const paymentsSnapshot = await getDocs(paymentsQuery);
-
-        if (paymentsSnapshot.empty) {
-          alert('Receipt not found');
-          router.push('/dashboard/fees');
-          return;
-        }
-
-        paymentData = {
-          id: paymentsSnapshot.docs[0].id,
-          ...paymentsSnapshot.docs[0].data()
-        } as Payment;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to load receipt');
       }
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to load receipt');
+      }
+
+      // Convert ISO date strings back to Date objects for payment date
+      const paymentData = {
+        ...data.payment,
+        paymentDate: data.payment.paymentDate
+          ? new Date(data.payment.paymentDate)
+          : new Date(),
+      };
 
       setPayment(paymentData);
-
-      // Load student fee
-      const feeDoc = await getDoc(doc(db, 'studentFees', paymentData.studentFeeId));
-      if (feeDoc.exists()) {
-        setStudentFee({ id: feeDoc.id, ...feeDoc.data() } as StudentFee);
-      }
-
-      // Load student
-      const studentDoc = await getDoc(doc(db, 'students', paymentData.studentId));
-      if (studentDoc.exists()) {
-        setStudent({ id: studentDoc.id, ...studentDoc.data() });
-      }
-
-      // Load school info (tenant)
-      const tenantDoc = await getDoc(doc(db, 'tenants', user.tenantId));
-      if (tenantDoc.exists()) {
-        const tenantData = tenantDoc.data();
-        setSchool({
-          name: tenantData.schoolName || 'School Name',
-          address: tenantData.address || 'School Address',
-          phone: tenantData.phone || 'N/A',
-          email: tenantData.email || 'N/A',
-          logo: tenantData.logo,
-        });
-      } else {
-        setSchool({
-          name: 'School Name',
-          address: 'School Address',
-          phone: 'N/A',
-          email: 'N/A',
-        });
-      }
+      setStudentFee(data.studentFee);
+      setStudent(data.student);
+      setSchool(data.school);
     } catch (error: any) {
       console.error('Error loading receipt data:', error);
-
-      // Check if it's an index error
-      if (error.message && error.message.includes('index')) {
-        alert('Database index required. Please check the browser console for the index creation link, or contact your administrator.');
-      } else if (error.message && error.message.includes('permission')) {
-        alert('Permission denied. You may not have access to view this receipt.');
-      } else {
-        alert('Failed to load receipt: ' + (error.message || 'Unknown error'));
-      }
+      alert('Failed to load receipt: ' + (error.message || 'Unknown error'));
     } finally {
       setLoading(false);
     }
