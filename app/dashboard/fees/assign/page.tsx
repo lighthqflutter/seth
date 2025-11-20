@@ -63,6 +63,12 @@ export default function AssignFeesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
 
+  // Helper function to get term name
+  const getTermName = (termId: string): string => {
+    const term = terms.find(t => t.id === termId);
+    return term ? term.name : 'Term';
+  };
+
   useEffect(() => {
     if (!user?.tenantId) return;
     loadInitialData();
@@ -270,10 +276,22 @@ export default function AssignFeesPage() {
       let assignmentCount = 0;
       let skippedCount = 0;
 
-      // For each selected student and each selected fee
+      // Group fees by student to create consolidated bills
+      const studentBills = new Map<string, {
+        student: Student;
+        feeItems: FeeStructureItem[];
+        totalAmount: number;
+        dueDate: Date;
+      }>();
+
+      // First, organize fees by student
       for (const studentId of Array.from(selectedStudents)) {
         const student = students.find(s => s.id === studentId);
         if (!student) continue;
+
+        const studentFeeItems: FeeStructureItem[] = [];
+        let totalAmount = 0;
+        let earliestDueDate: Date | null = null;
 
         for (const feeId of Array.from(selectedFeeItems)) {
           const feeItem = feeItems.find(f => f.id === feeId);
@@ -286,49 +304,76 @@ export default function AssignFeesPage() {
             continue;
           }
 
-          const finalAmount = calculateFinalAmount(feeItem.amount, {
-            discountAmount: 0,
-            waiverAmount: 0,
-            latePenaltyPercentage: feeItem.latePenaltyPercentage,
-            isOverdue: false,
-          });
+          studentFeeItems.push(feeItem);
+          totalAmount += feeItem.amount;
 
           const dueDate = feeItem.dueDate instanceof Date
             ? feeItem.dueDate
             : feeItem.dueDate.toDate();
-          const overdueStatus = isOverdue(dueDate);
 
-          const studentFee: any = {
-            tenantId: user.tenantId,
-            studentId: student.id,
-            studentName: `${student.firstName} ${student.lastName}`.trim(),
-            admissionNumber: student.admissionNumber,
-            feeStructureItemId: feeItem.id,
-            termId: selectedTerm,
-            classId: student.currentClassId,
-            feeType: feeItem.feeType,
-            feeName: feeItem.customName || feeItem.description,
-            baseAmount: feeItem.amount,
-            finalAmount,
-            amountPaid: 0,
-            amountOutstanding: finalAmount,
-            status: overdueStatus ? 'overdue' : 'pending',
-            dueDate: Timestamp.fromDate(dueDate),
-            isOverdue: overdueStatus,
-            allowInstallments: false,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-            assignedBy: user.uid,
-          };
-
-          const feeRef = doc(collection(db, 'studentFees'));
-          batch.set(feeRef, studentFee);
-          assignmentCount++;
-
-          // Firestore batch limit is 500 operations
-          if (assignmentCount % 500 === 0) {
-            await batch.commit();
+          if (!earliestDueDate || dueDate < earliestDueDate) {
+            earliestDueDate = dueDate;
           }
+        }
+
+        if (studentFeeItems.length > 0 && earliestDueDate) {
+          studentBills.set(studentId, {
+            student,
+            feeItems: studentFeeItems,
+            totalAmount,
+            dueDate: earliestDueDate,
+          });
+        }
+      }
+
+      // Generate consolidated bill ID for this assignment batch
+      const consolidatedBillId = `bill_${selectedTerm}_${Date.now()}`;
+
+      // Now create individual fee records but link them to consolidated bill
+      for (const [studentId, billData] of studentBills) {
+        const { student, feeItems: studentFeeItems, totalAmount, dueDate } = billData;
+        const overdueStatus = isOverdue(dueDate);
+
+        // Create one consolidated bill record per student
+        const consolidatedBillRef = doc(collection(db, 'studentFees'));
+        const consolidatedBill: any = {
+          tenantId: user.tenantId,
+          studentId: student.id,
+          studentName: `${student.firstName} ${student.lastName}`.trim(),
+          admissionNumber: student.admissionNumber,
+          termId: selectedTerm,
+          classId: student.currentClassId,
+
+          // Consolidated bill fields
+          isConsolidated: true,
+          consolidatedBillId: consolidatedBillRef.id,
+          feeName: `${getTermName(selectedTerm)} Fees (${studentFeeItems.length} items)`,
+          feeItems: studentFeeItems.map(fi => ({
+            id: fi.id,
+            feeType: fi.feeType,
+            name: fi.customName || fi.description,
+            amount: fi.amount,
+          })),
+
+          baseAmount: totalAmount,
+          finalAmount: totalAmount,
+          amountPaid: 0,
+          amountOutstanding: totalAmount,
+          status: overdueStatus ? 'overdue' : 'pending',
+          dueDate: Timestamp.fromDate(dueDate),
+          isOverdue: overdueStatus,
+          allowInstallments: false,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          assignedBy: user.uid,
+        };
+
+        batch.set(consolidatedBillRef, consolidatedBill);
+        assignmentCount++;
+
+        // Firestore batch limit is 500 operations
+        if (assignmentCount % 500 === 0) {
+          await batch.commit();
         }
       }
 

@@ -443,6 +443,20 @@ export default function ParentFeesPage() {
                         <p className="text-sm text-gray-600">
                           {fee.studentName} • {fee.className} • {fee.termName}
                         </p>
+
+                        {/* Show fee items breakdown for consolidated bills */}
+                        {(fee as any).isConsolidated && (fee as any).feeItems && (
+                          <div className="mt-2 p-2 bg-gray-50 rounded text-xs">
+                            <p className="font-medium text-gray-700 mb-1">Includes:</p>
+                            <ul className="list-disc list-inside space-y-0.5 text-gray-600">
+                              {(fee as any).feeItems.map((item: any, idx: number) => (
+                                <li key={idx}>
+                                  {item.name} - {formatCurrency(item.amount)}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
                       </div>
                       {getStatusBadge(fee.status, fee.isOverdue)}
                     </div>
