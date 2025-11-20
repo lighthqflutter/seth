@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { StudentFee, Payment, PaymentStatus, PaymentGatewaySettings } from '@/types/fees';
 import PaymentModal from '@/components/PaymentModal';
+import BankTransferUploadModal from '@/components/BankTransferUploadModal';
 import {
   BanknotesIcon,
   DocumentArrowDownIcon,
@@ -63,6 +64,7 @@ export default function ParentFeesPage() {
   const [gatewaySettings, setGatewaySettings] = useState<PaymentGatewaySettings | null>(null);
   const [selectedFee, setSelectedFee] = useState<FeeWithDetails | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showBankTransferModal, setShowBankTransferModal] = useState(false);
 
   const [filters, setFilters] = useState<FilterOptions>({
     studentId: 'all',
@@ -283,8 +285,15 @@ export default function ParentFeesPage() {
   };
 
   const handleUploadProof = (fee: FeeWithDetails) => {
-    // TODO: Navigate to upload proof page
-    router.push(`/parent/fees/upload-proof/${fee.id}`);
+    setSelectedFee(fee);
+    setShowBankTransferModal(true);
+  };
+
+  const handleBankTransferSuccess = () => {
+    setShowBankTransferModal(false);
+    setSelectedFee(null);
+    // Reload fees to reflect submission
+    window.location.reload();
   };
 
   const handleDownloadReceipt = (receiptUrl: string) => {
@@ -557,6 +566,26 @@ export default function ParentFeesPage() {
           userId={user.uid}
           tenantId={user.tenantId}
           onPaymentSuccess={handlePaymentSuccess}
+        />
+      )}
+
+      {/* Bank Transfer Upload Modal */}
+      {selectedFee && user && (
+        <BankTransferUploadModal
+          isOpen={showBankTransferModal}
+          onClose={() => {
+            setShowBankTransferModal(false);
+            setSelectedFee(null);
+          }}
+          fee={{
+            id: selectedFee.id,
+            feeName: selectedFee.feeName,
+            studentName: selectedFee.studentName,
+            amountOutstanding: selectedFee.amountOutstanding,
+          }}
+          userId={user.uid}
+          tenantId={user.tenantId}
+          onUploadSuccess={handleBankTransferSuccess}
         />
       )}
     </>
