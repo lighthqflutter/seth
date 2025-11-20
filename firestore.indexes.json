@@ -297,6 +297,7 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "studentFeeId", "order": "ASCENDING" },
+        { "fieldPath": "tenantId", "order": "ASCENDING" },
         { "fieldPath": "paymentDate", "order": "DESCENDING" }
       ]
     },

@@ -135,9 +135,17 @@ export default function ReceiptPage({ params }: ReceiptPageProps) {
           email: 'N/A',
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading receipt data:', error);
-      alert('Failed to load receipt');
+
+      // Check if it's an index error
+      if (error.message && error.message.includes('index')) {
+        alert('Database index required. Please check the browser console for the index creation link, or contact your administrator.');
+      } else if (error.message && error.message.includes('permission')) {
+        alert('Permission denied. You may not have access to view this receipt.');
+      } else {
+        alert('Failed to load receipt: ' + (error.message || 'Unknown error'));
+      }
     } finally {
       setLoading(false);
     }
