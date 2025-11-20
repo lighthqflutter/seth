@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { collection, query, where, onSnapshot, orderBy, doc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, doc, deleteDoc, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -40,11 +40,26 @@ export default function ClassesPage() {
       orderBy('name')
     );
 
-    const unsubscribe = onSnapshot(classesQuery, (snapshot) => {
-      const classesData = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Class[];
+    const unsubscribe = onSnapshot(classesQuery, async (snapshot) => {
+      const classesData = await Promise.all(
+        snapshot.docs.map(async (doc) => {
+          const classData = doc.data();
+
+          // Get actual student count from students collection
+          const studentsQuery = query(
+            collection(db, 'students'),
+            where('tenantId', '==', user.tenantId),
+            where('currentClassId', '==', doc.id)
+          );
+          const studentsSnapshot = await getDocs(studentsQuery);
+
+          return {
+            id: doc.id,
+            ...classData,
+            studentCount: studentsSnapshot.size,
+          } as Class;
+        })
+      );
 
       setClasses(classesData);
       setLoading(false);
