@@ -27,9 +27,6 @@ interface BankTransferSubmission {
   studentName: string;
   submittedBy: string;
   amount: number;
-  referenceNumber: string;
-  bankName: string;
-  paymentDate: string;
   proofUrl: string;
   fileName: string;
   status: 'pending' | 'approved' | 'rejected';
@@ -359,7 +356,7 @@ export default function BankTransfersPage() {
                         {getStatusBadge(submission.status)}
                       </div>
 
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
                         <div>
                           <p className="text-xs text-gray-600">Amount</p>
                           <p className="text-sm font-semibold text-gray-900">
@@ -367,21 +364,9 @@ export default function BankTransfersPage() {
                           </p>
                         </div>
                         <div>
-                          <p className="text-xs text-gray-600">Bank</p>
+                          <p className="text-xs text-gray-600">Proof Document</p>
                           <p className="text-sm font-semibold text-gray-900">
-                            {submission.bankName}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-600">Reference</p>
-                          <p className="text-sm font-semibold text-gray-900">
-                            {submission.referenceNumber}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-600">Payment Date</p>
-                          <p className="text-sm font-semibold text-gray-900">
-                            {formatDate(submission.paymentDate)}
+                            {submission.fileName}
                           </p>
                         </div>
                       </div>
@@ -463,8 +448,7 @@ export default function BankTransfersPage() {
                     {selectedSubmission.studentName} - {selectedSubmission.feeName}
                   </p>
                   <p className="text-sm text-gray-500 mt-1">
-                    Amount: {formatCurrency(selectedSubmission.amount)} •
-                    Reference: {selectedSubmission.referenceNumber}
+                    Amount: {formatCurrency(selectedSubmission.amount)}
                   </p>
                 </div>
                 <button

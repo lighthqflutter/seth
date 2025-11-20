@@ -37,10 +37,6 @@ export default function BankTransferUploadModal({
 }: BankTransferUploadModalProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>('');
-  const [amountPaid, setAmountPaid] = useState<string>(fee.amountOutstanding.toString());
-  const [referenceNumber, setReferenceNumber] = useState('');
-  const [bankName, setBankName] = useState('');
-  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
 
@@ -93,27 +89,6 @@ export default function BankTransferUploadModal({
       return;
     }
 
-    if (!referenceNumber.trim()) {
-      setError('Please enter the transaction reference number');
-      return;
-    }
-
-    if (!bankName.trim()) {
-      setError('Please enter the bank name');
-      return;
-    }
-
-    const amount = parseFloat(amountPaid);
-    if (isNaN(amount) || amount <= 0) {
-      setError('Please enter a valid amount');
-      return;
-    }
-
-    if (amount > fee.amountOutstanding) {
-      setError('Amount cannot exceed the outstanding balance');
-      return;
-    }
-
     setUploading(true);
     setError('');
 
@@ -134,10 +109,7 @@ export default function BankTransferUploadModal({
           studentFeeId: fee.id,
           userId,
           tenantId,
-          amount,
-          referenceNumber: referenceNumber.trim(),
-          bankName: bankName.trim(),
-          paymentDate,
+          amount: fee.amountOutstanding, // Use full outstanding amount
           proofUrl: fileUrl,
           fileName: selectedFile.name,
         }),
@@ -157,10 +129,6 @@ export default function BankTransferUploadModal({
       // Reset form
       setSelectedFile(null);
       setPreviewUrl('');
-      setReferenceNumber('');
-      setBankName('');
-      setAmountPaid(fee.amountOutstanding.toString());
-      setPaymentDate(new Date().toISOString().split('T')[0]);
 
       onClose();
     } catch (err: any) {
@@ -263,76 +231,6 @@ export default function BankTransferUploadModal({
 
           {/* Upload Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Amount Paid */}
-            <div>
-              <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-1">
-                Amount Paid <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="number"
-                id="amount"
-                value={amountPaid}
-                onChange={(e) => setAmountPaid(e.target.value)}
-                step="0.01"
-                min="0"
-                max={fee.amountOutstanding}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-                disabled={uploading}
-              />
-            </div>
-
-            {/* Bank Name */}
-            <div>
-              <label htmlFor="bankName" className="block text-sm font-medium text-gray-700 mb-1">
-                Bank Name <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                id="bankName"
-                value={bankName}
-                onChange={(e) => setBankName(e.target.value)}
-                placeholder="e.g., Access Bank, GTBank"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-                disabled={uploading}
-              />
-            </div>
-
-            {/* Reference Number */}
-            <div>
-              <label htmlFor="reference" className="block text-sm font-medium text-gray-700 mb-1">
-                Transaction Reference Number <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                id="reference"
-                value={referenceNumber}
-                onChange={(e) => setReferenceNumber(e.target.value)}
-                placeholder="e.g., TXN123456789"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-                disabled={uploading}
-              />
-            </div>
-
-            {/* Payment Date */}
-            <div>
-              <label htmlFor="paymentDate" className="block text-sm font-medium text-gray-700 mb-1">
-                Payment Date <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="date"
-                id="paymentDate"
-                value={paymentDate}
-                onChange={(e) => setPaymentDate(e.target.value)}
-                max={new Date().toISOString().split('T')[0]}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-                disabled={uploading}
-              />
-            </div>
-
             {/* File Upload */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">

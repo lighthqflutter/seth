@@ -14,9 +14,6 @@ export async function POST(request: NextRequest) {
       userId,
       tenantId,
       amount,
-      referenceNumber,
-      bankName,
-      paymentDate,
       proofUrl,
       fileName,
     } = body;
@@ -26,8 +23,6 @@ export async function POST(request: NextRequest) {
       userId,
       tenantId,
       amount,
-      referenceNumber,
-      bankName,
     });
 
     // Validate required fields
@@ -36,9 +31,6 @@ export async function POST(request: NextRequest) {
       !userId ||
       !tenantId ||
       !amount ||
-      !referenceNumber ||
-      !bankName ||
-      !paymentDate ||
       !proofUrl
     ) {
       return NextResponse.json(
@@ -84,30 +76,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check for duplicate reference number
-    const duplicateQuery = await adminDb
-      .collection('bank_transfer_submissions')
-      .where('tenantId', '==', tenantId)
-      .where('referenceNumber', '==', referenceNumber.trim())
-      .limit(1)
-      .get();
-
-    if (!duplicateQuery.empty) {
-      return NextResponse.json(
-        { error: 'A submission with this reference number already exists' },
-        { status: 400 }
-      );
-    }
-
-    // Parse payment date
-    const parsedPaymentDate = new Date(paymentDate);
-    if (isNaN(parsedPaymentDate.getTime())) {
-      return NextResponse.json(
-        { error: 'Invalid payment date' },
-        { status: 400 }
-      );
-    }
-
     // Create bank transfer submission record
     const submissionData = {
       tenantId,
@@ -116,9 +84,6 @@ export async function POST(request: NextRequest) {
       studentName: studentFee.studentName,
       submittedBy: userId,
       amount,
-      referenceNumber: referenceNumber.trim(),
-      bankName: bankName.trim(),
-      paymentDate: Timestamp.fromDate(parsedPaymentDate),
       proofUrl,
       fileName,
       status: 'pending', // pending, approved, rejected

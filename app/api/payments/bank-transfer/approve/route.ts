@@ -107,12 +107,10 @@ export async function POST(request: NextRequest) {
       studentFeeId: submission.studentFeeId,
       amount: submission.amount,
       paymentMethod: 'bank_transfer',
-      paymentDate: submission.paymentDate, // Use the date from the transfer
-      bankName: submission.bankName,
-      transactionReference: submission.referenceNumber,
+      paymentDate: Timestamp.now(), // Use current date as payment date
       bankTransferProofUrl: submission.proofUrl,
       receiptNumber,
-      notes: `Bank transfer approved - Reference: ${submission.referenceNumber}`,
+      notes: `Bank transfer approved`,
       recordedBy: userId,
       recordedAt: Timestamp.now(),
       isRefunded: false,

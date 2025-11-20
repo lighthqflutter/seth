@@ -45,6 +45,16 @@ service firebase.storage {
                       request.auth.token.tenantId == tenantId;
     }
 
+    // Bank transfer proof uploads - allow parents to upload, finance/admin to read
+    match /bank-transfers/{tenantId}/{allPaths=**} {
+      allow read: if request.auth != null &&
+                     request.auth.token.tenantId == tenantId &&
+                     request.auth.token.role in ['admin', 'finance', 'parent'];
+      allow write: if request.auth != null &&
+                      request.auth.token.tenantId == tenantId &&
+                      request.auth.token.role in ['admin', 'finance', 'parent'];
+    }
+
     // Default: deny all other access
     match /{allPaths=**} {
       allow read, write: if false;
