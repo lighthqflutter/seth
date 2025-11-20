@@ -87,9 +87,13 @@ export default function ChildProfilePage() {
     const loadData = async () => {
       if (!user?.tenantId || !user?.uid || !studentId) return;
 
-      // Redirect non-parents
+      // Redirect non-parents to their appropriate dashboard
       if (user.role !== 'parent') {
-        router.push('/dashboard');
+        if (user.role === 'admin' || user.role === 'teacher' || user.role === 'finance') {
+          router.push('/dashboard');
+        } else {
+          router.push('/login');
+        }
         return;
       }
 

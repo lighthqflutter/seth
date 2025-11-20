@@ -75,7 +75,12 @@ export default function ParentFeesPage() {
   // Check parent access
   useEffect(() => {
     if (user && user.role !== 'parent') {
-      router.push('/dashboard');
+      // Redirect non-parents to their appropriate dashboard
+      if (user.role === 'admin' || user.role === 'teacher' || user.role === 'finance') {
+        router.push('/dashboard');
+      } else {
+        router.push('/login');
+      }
     }
   }, [user, router]);
 

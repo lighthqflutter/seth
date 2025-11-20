@@ -32,10 +32,14 @@ export default function ParentLayout({
     }
   }, [user, loading, router]);
 
-  // Redirect non-parents to admin dashboard
+  // Redirect non-parents to their appropriate dashboard
   useEffect(() => {
     if (!loading && user && user.role !== 'parent') {
-      router.push('/dashboard');
+      if (user.role === 'admin' || user.role === 'teacher' || user.role === 'finance') {
+        router.push('/dashboard');
+      } else {
+        router.push('/login');
+      }
     }
   }, [user, loading, router]);
 

@@ -86,9 +86,13 @@ export default function ParentDashboard() {
     const loadChildren = async () => {
       if (!user?.tenantId || !user?.uid) return;
 
-      // Redirect non-parents
+      // Redirect non-parents to their appropriate dashboard
       if (user.role !== 'parent') {
-        router.push('/dashboard');
+        if (user.role === 'admin' || user.role === 'teacher' || user.role === 'finance') {
+          router.push('/dashboard');
+        } else {
+          router.push('/login');
+        }
         return;
       }
 
