@@ -98,7 +98,14 @@ export default function ParentReceiptPage({ params }: ReceiptPageProps) {
       setSchool(data.school);
     } catch (error: any) {
       console.error('Error loading receipt data:', error);
-      alert('Failed to load receipt: ' + (error.message || 'Unknown error'));
+
+      // Show user-friendly error message
+      const errorMessage = error.message || 'Unknown error';
+      if (errorMessage.includes('Receipt not found')) {
+        alert('No payment record found for this fee. The fee may have been marked as paid manually without creating a payment record.');
+      } else {
+        alert('Failed to load receipt: ' + errorMessage);
+      }
     } finally {
       setLoading(false);
     }
