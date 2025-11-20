@@ -11,11 +11,22 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { studentFeeId, userId, tenantId } = body;
 
+    console.log('Initialize payment request:', { studentFeeId, userId, tenantId });
+
     // Validate required fields
     if (!studentFeeId || !userId || !tenantId) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
+      );
+    }
+
+    // Check if adminDb is initialized
+    if (!adminDb) {
+      console.error('Firebase Admin not initialized');
+      return NextResponse.json(
+        { error: 'Server configuration error' },
+        { status: 500 }
       );
     }
 
