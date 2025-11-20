@@ -217,6 +217,60 @@ service cloud.firestore {
                        resource.data.tenantId == getUserTenant();
     }
 
+    // Helper function: Check if user is finance or admin
+    function isFinanceOrAdmin() {
+      return request.auth.token.role in ['finance', 'admin'];
+    }
+
+    // Payment Gateway Settings: Admins and Finance can manage
+    match /payment_gateway_settings/{settingsId} {
+      allow read: if request.auth != null &&
+                     resource.data.tenantId == getUserTenant();
+      allow create: if isFinanceOrAdmin() &&
+                       request.resource.data.tenantId == getUserTenant();
+      allow update: if isFinanceOrAdmin() &&
+                       resource.data.tenantId == getUserTenant();
+      allow delete: if isAdmin() &&
+                       resource.data.tenantId == getUserTenant();
+    }
+
+    // Fee Configurations: Admins and Finance can manage
+    match /fee_configurations/{configId} {
+      allow read: if request.auth != null &&
+                     resource.data.tenantId == getUserTenant();
+      allow create: if isFinanceOrAdmin() &&
+                       request.resource.data.tenantId == getUserTenant();
+      allow update: if isFinanceOrAdmin() &&
+                       resource.data.tenantId == getUserTenant();
+      allow delete: if isAdmin() &&
+                       resource.data.tenantId == getUserTenant();
+    }
+
+    // Online Payment Transactions: Parents can create, admins/finance can read
+    match /online_payment_transactions/{transactionId} {
+      allow read: if request.auth != null &&
+                     resource.data.tenantId == getUserTenant();
+      allow create: if request.auth != null &&
+                       request.resource.data.tenantId == getUserTenant() &&
+                       request.resource.data.guardianId == request.auth.uid;
+      allow update: if false; // Only via server-side API
+      allow delete: if isAdmin() &&
+                       resource.data.tenantId == getUserTenant();
+    }
+
+    // Pending Payments: Parents can create, finance/admin can update
+    match /pending_payments/{paymentId} {
+      allow read: if request.auth != null &&
+                     resource.data.tenantId == getUserTenant();
+      allow create: if request.auth != null &&
+                       request.resource.data.tenantId == getUserTenant() &&
+                       request.resource.data.guardianId == request.auth.uid;
+      allow update: if isFinanceOrAdmin() &&
+                       resource.data.tenantId == getUserTenant();
+      allow delete: if isAdmin() &&
+                       resource.data.tenantId == getUserTenant();
+    }
+
     // Default: Deny all other access
     match /{document=**} {
       allow read, write: if false;
