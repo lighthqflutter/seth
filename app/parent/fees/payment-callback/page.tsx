@@ -62,6 +62,8 @@ export default function PaymentCallbackPage() {
 
         const data = await response.json();
 
+        console.log('Verification response:', { status: response.status, data });
+
         if (response.ok && data.success) {
           setStatus('success');
           setMessage('Payment verified successfully!');
@@ -71,12 +73,15 @@ export default function PaymentCallbackPage() {
           });
         } else {
           setStatus('failed');
-          setMessage(data.error || 'Payment verification failed');
+          const errorMessage = data.error || 'Payment verification failed';
+          const errorDetails = data.details ? ` - ${data.details}` : '';
+          setMessage(errorMessage + errorDetails);
+          console.error('Verification failed:', data);
         }
       } catch (error: any) {
         console.error('Payment verification error:', error);
         setStatus('failed');
-        setMessage('An error occurred while verifying your payment');
+        setMessage(`An error occurred while verifying your payment: ${error.message}`);
       }
     };
 
