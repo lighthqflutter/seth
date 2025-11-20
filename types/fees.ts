@@ -390,3 +390,115 @@ export interface FeeStatistics {
   recentPayments: Payment[];
   topDefaulters: Defaulter[];
 }
+
+/**
+ * Payment Gateway Settings (Multi-tenant secure storage)
+ */
+export interface PaymentGatewaySettings {
+  id: string;
+  tenantId: string;
+
+  // Paystack Configuration
+  paystack: {
+    enabled: boolean;
+    publicKey: string;
+    secretKey: string; // Encrypted in storage
+    webhookUrl?: string;
+  };
+
+  // Flutterwave Configuration
+  flutterwave: {
+    enabled: boolean;
+    publicKey: string;
+    secretKey: string; // Encrypted in storage
+    webhookUrl?: string;
+  };
+
+  // Bank Transfer Configuration
+  bankTransfer: {
+    enabled: boolean;
+    bankName: string;
+    accountName: string;
+    accountNumber: string;
+    instructions?: string; // Custom instructions for parents
+  };
+
+  // Default payment method
+  defaultPaymentMethod: 'paystack' | 'flutterwave' | 'bank_transfer';
+
+  createdAt: Date | Timestamp;
+  updatedAt: Date | Timestamp;
+  updatedBy: string;
+}
+
+/**
+ * Pending Payment (Bank Transfer awaiting approval)
+ */
+export interface PendingPayment {
+  id: string;
+  tenantId: string;
+  studentFeeId: string;
+  studentId: string;
+  studentName: string;
+  guardianId: string;
+  guardianName: string;
+
+  // Payment details
+  amount: number;
+  paymentMethod: 'bank_transfer';
+  proofOfPaymentUrl: string; // URL to uploaded image/PDF
+  paymentDate: Date | Timestamp; // Date parent claims they paid
+  transactionReference?: string; // Bank reference if provided
+
+  // Bank details used
+  bankName?: string;
+  accountNumber?: string;
+
+  // Review status
+  status: 'pending_review' | 'approved' | 'rejected';
+  reviewedBy?: string;
+  reviewedByName?: string;
+  reviewedAt?: Date | Timestamp;
+  reviewNotes?: string;
+
+  // If approved, link to generated payment record
+  paymentId?: string;
+
+  // Metadata
+  submittedAt: Date | Timestamp;
+  createdAt: Date | Timestamp;
+  updatedAt: Date | Timestamp;
+}
+
+/**
+ * Online Payment Transaction (Paystack/Flutterwave)
+ */
+export interface OnlinePaymentTransaction {
+  id: string;
+  tenantId: string;
+  studentFeeId: string;
+  studentId: string;
+  guardianId: string;
+
+  // Gateway details
+  gateway: 'paystack' | 'flutterwave';
+  transactionReference: string; // Gateway transaction reference
+  authorizationUrl?: string; // Payment URL (before completion)
+
+  // Payment details
+  amount: number;
+  currency: string;
+  status: 'pending' | 'successful' | 'failed' | 'abandoned';
+
+  // Gateway response
+  gatewayResponse?: any; // Full response from gateway
+  paidAt?: Date | Timestamp;
+
+  // If successful, link to generated payment record
+  paymentId?: string;
+
+  // Metadata
+  initiatedAt: Date | Timestamp;
+  createdAt: Date | Timestamp;
+  updatedAt: Date | Timestamp;
+}

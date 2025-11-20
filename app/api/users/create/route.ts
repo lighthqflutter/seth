@@ -6,7 +6,7 @@ interface CreateUserRequest {
   name: string;
   email: string;
   phone?: string;
-  role: 'admin' | 'teacher' | 'parent';
+  role: 'admin' | 'teacher' | 'parent' | 'finance';
   tenantId: string;
   schoolName: string;
   schoolUrl: string;

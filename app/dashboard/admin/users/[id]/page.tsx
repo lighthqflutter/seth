@@ -36,7 +36,7 @@ interface UserDetail {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'teacher' | 'parent';
+  role: 'admin' | 'teacher' | 'parent' | 'finance';
   phone?: string;
   photoUrl?: string;
   isActive: boolean;

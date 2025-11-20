@@ -363,7 +363,7 @@ export interface User {
   tenantId: string; // 'SUPER_ADMIN' for super admin users
   email: string;
   name: string;
-  role: 'superadmin' | 'admin' | 'teacher' | 'parent';
+  role: 'superadmin' | 'admin' | 'teacher' | 'parent' | 'finance';
   phone?: string;
   photoUrl?: string;
   subjectIds?: string[]; // Subjects taught by teacher (only for role='teacher')

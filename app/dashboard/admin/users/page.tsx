@@ -37,7 +37,7 @@ interface User {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'teacher' | 'parent';
+  role: 'admin' | 'teacher' | 'parent' | 'finance';
   phone?: string;
   isActive: boolean;
   tenantId: string;

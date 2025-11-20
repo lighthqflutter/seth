@@ -15,7 +15,7 @@ const transporter = nodemailer.createTransport({
 interface InvitationRequest {
   email: string;
   name: string;
-  role: 'admin' | 'teacher' | 'parent';
+  role: 'admin' | 'teacher' | 'parent' | 'finance';
   password: string;
   schoolName: string;
   schoolUrl: string;

@@ -27,6 +27,12 @@ export default function SettingsPage() {
       href: '/dashboard/settings/promotion',
     },
     {
+      title: 'Payment Gateways',
+      description: 'Configure Paystack, Flutterwave, and bank transfer options',
+      icon: '💳',
+      href: '/dashboard/settings/payment-gateways',
+    },
+    {
       title: 'Academic Settings',
       description: 'Configure grading, terms, and academic calendar',
       icon: '📚',
