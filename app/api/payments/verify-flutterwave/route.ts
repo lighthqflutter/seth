@@ -30,52 +30,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get transaction record
-    // Try to find by our custom reference first (FLW_xxx format)
-    let transactionsQuery = await adminDb
+    // Get transaction record by our custom tx_ref (which starts with FLW_)
+    const transactionsQuery = await adminDb
       .collection('online_payment_transactions')
       .where('tenantId', '==', tenantId)
       .where('transactionReference', '==', reference)
       .limit(1)
       .get();
 
-    // If not found and reference is numeric (Flutterwave transaction_id),
-    // search by gateway and try to match using the gateway response
-    if (transactionsQuery.empty && !reference.startsWith('FLW_')) {
-      console.log('Transaction not found by reference, searching by gateway...');
-      const allTransactions = await adminDb
-        .collection('online_payment_transactions')
-        .where('tenantId', '==', tenantId)
-        .where('gateway', '==', 'flutterwave')
-        .where('status', '==', 'pending')
-        .get();
-
-      console.log(`Found ${allTransactions.size} pending Flutterwave transactions`);
-
-      // Try to match by checking if any pending transaction could match this payment
-      if (!allTransactions.empty) {
-        // Use the most recent pending transaction
-        const sortedDocs = allTransactions.docs.sort((a: any, b: any) => {
-          const aTime = a.data().initiatedAt?.toMillis() || 0;
-          const bTime = b.data().initiatedAt?.toMillis() || 0;
-          return bTime - aTime;
-        });
-
-        if (sortedDocs.length > 0) {
-          console.log('Using most recent pending transaction');
-          transactionsQuery = {
-            empty: false,
-            docs: [sortedDocs[0]],
-            size: 1
-          } as any;
-        }
-      }
-    }
-
     if (transactionsQuery.empty) {
       console.error('Transaction not found:', { reference, tenantId });
       return NextResponse.json(
-        { error: 'Transaction not found' },
+        { error: 'Transaction not found. Please ensure you are using the correct payment reference.' },
         { status: 404 }
       );
     }

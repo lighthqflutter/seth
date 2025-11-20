@@ -28,9 +28,11 @@ export default function PaymentCallbackPage() {
     const verifyPayment = async () => {
       const reference = searchParams.get('reference');
       const trxref = searchParams.get('trxref'); // Paystack uses this
-      const transaction_id = searchParams.get('transaction_id'); // Flutterwave uses this
+      const tx_ref = searchParams.get('tx_ref'); // Flutterwave uses this (our custom reference)
+      const transaction_id = searchParams.get('transaction_id'); // Flutterwave uses this (their internal ID)
 
-      const paymentReference = reference || trxref || transaction_id;
+      // For Flutterwave, prefer tx_ref (our custom reference) over transaction_id
+      const paymentReference = reference || trxref || tx_ref || transaction_id;
 
       if (!paymentReference) {
         setStatus('failed');
@@ -51,7 +53,8 @@ export default function PaymentCallbackPage() {
 
       try {
         // Determine which gateway to verify with
-        const isFlutterwave = !!transaction_id;
+        // Flutterwave sends tx_ref and/or transaction_id
+        const isFlutterwave = !!tx_ref || !!transaction_id;
         const endpoint = isFlutterwave
           ? '/api/payments/verify-flutterwave'
           : '/api/payments/verify-paystack';
