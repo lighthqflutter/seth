@@ -144,23 +144,12 @@ export default function ParentFeesPage() {
               console.error('Error loading term:', err);
             }
 
-            // Load receipt if paid
+            // For paid fees, we'll show a link to view/download receipt
+            // The receipt will be generated on-demand when requested
             let receiptUrl: string | undefined = undefined;
             if (feeData.status === 'paid') {
-              try {
-                const paymentsQuery = query(
-                  collection(db, 'payments'),
-                  where('studentFeeId', '==', feeDoc.id),
-                  orderBy('paymentDate', 'desc')
-                );
-                const paymentsSnapshot = await getDocs(paymentsQuery);
-                if (!paymentsSnapshot.empty) {
-                  const latestPayment = paymentsSnapshot.docs[0].data() as Payment;
-                  receiptUrl = latestPayment.receiptUrl;
-                }
-              } catch (err) {
-                console.error('Error loading receipt:', err);
-              }
+              // Link to receipt page - format: /dashboard/fees/receipts/{studentFeeId}
+              receiptUrl = `/dashboard/fees/receipts/${feeDoc.id}`;
             }
 
             return {
@@ -297,7 +286,8 @@ export default function ParentFeesPage() {
   };
 
   const handleDownloadReceipt = (receiptUrl: string) => {
-    window.open(receiptUrl, '_blank');
+    // Navigate to the receipt page
+    router.push(receiptUrl);
   };
 
   if (loading) {

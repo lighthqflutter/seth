@@ -71,15 +71,37 @@ export default function ReceiptPage({ params }: ReceiptPageProps) {
     try {
       setLoading(true);
 
-      // Load payment
+      // Try to load as payment ID first
+      let paymentData: Payment | null = null;
       const paymentDoc = await getDoc(doc(db, 'payments', receiptId));
-      if (!paymentDoc.exists()) {
-        alert('Receipt not found');
-        router.push('/dashboard/fees');
-        return;
+
+      if (paymentDoc.exists()) {
+        // Direct payment ID was provided
+        paymentData = { id: paymentDoc.id, ...paymentDoc.data() } as Payment;
+      } else {
+        // Try loading as studentFeeId - get most recent payment for this fee
+        const { query, collection, where, orderBy: firestoreOrderBy, getDocs, limit } = await import('firebase/firestore');
+        const paymentsQuery = query(
+          collection(db, 'payments'),
+          where('studentFeeId', '==', receiptId),
+          where('tenantId', '==', user.tenantId),
+          firestoreOrderBy('paymentDate', 'desc'),
+          limit(1)
+        );
+        const paymentsSnapshot = await getDocs(paymentsQuery);
+
+        if (paymentsSnapshot.empty) {
+          alert('Receipt not found');
+          router.push('/dashboard/fees');
+          return;
+        }
+
+        paymentData = {
+          id: paymentsSnapshot.docs[0].id,
+          ...paymentsSnapshot.docs[0].data()
+        } as Payment;
       }
 
-      const paymentData = { id: paymentDoc.id, ...paymentDoc.data() } as Payment;
       setPayment(paymentData);
 
       // Load student fee
