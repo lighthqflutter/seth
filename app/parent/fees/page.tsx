@@ -148,8 +148,8 @@ export default function ParentFeesPage() {
             // The receipt will be generated on-demand when requested
             let receiptUrl: string | undefined = undefined;
             if (feeData.status === 'paid') {
-              // Link to receipt page - format: /dashboard/fees/receipts/{studentFeeId}
-              receiptUrl = `/dashboard/fees/receipts/${feeDoc.id}`;
+              // Link to parent receipt page - format: /parent/fees/receipts/{studentFeeId}
+              receiptUrl = `/parent/fees/receipts/${feeDoc.id}`;
             }
 
             return {
