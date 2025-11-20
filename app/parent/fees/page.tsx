@@ -585,6 +585,12 @@ export default function ParentFeesPage() {
           }}
           userId={user.uid}
           tenantId={user.tenantId}
+          bankAccountInfo={gatewaySettings?.bankTransfer?.enabled ? {
+            bankName: gatewaySettings.bankTransfer.bankName || '',
+            accountName: gatewaySettings.bankTransfer.accountName || '',
+            accountNumber: gatewaySettings.bankTransfer.accountNumber || '',
+            instructions: gatewaySettings.bankTransfer.instructions || '',
+          } : undefined}
           onUploadSuccess={handleBankTransferSuccess}
         />
       )}

@@ -17,6 +17,12 @@ interface BankTransferUploadModalProps {
   };
   userId: string;
   tenantId: string;
+  bankAccountInfo?: {
+    bankName: string;
+    accountName: string;
+    accountNumber: string;
+    instructions?: string;
+  };
   onUploadSuccess?: () => void;
 }
 
@@ -26,6 +32,7 @@ export default function BankTransferUploadModal({
   fee,
   userId,
   tenantId,
+  bankAccountInfo,
   onUploadSuccess,
 }: BankTransferUploadModalProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -210,6 +217,42 @@ export default function BankTransferUploadModal({
               </div>
             </div>
           </div>
+
+          {/* Bank Account Details */}
+          {bankAccountInfo && (
+            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <h3 className="text-sm font-semibold text-blue-900 mb-3">
+                Bank Account Details
+              </h3>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-blue-700">Bank Name:</span>
+                  <span className="text-sm font-semibold text-blue-900">
+                    {bankAccountInfo.bankName}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-blue-700">Account Name:</span>
+                  <span className="text-sm font-semibold text-blue-900">
+                    {bankAccountInfo.accountName}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-blue-700">Account Number:</span>
+                  <span className="text-base font-bold text-blue-900">
+                    {bankAccountInfo.accountNumber}
+                  </span>
+                </div>
+                {bankAccountInfo.instructions && (
+                  <div className="pt-2 border-t border-blue-200">
+                    <p className="text-xs text-blue-700">
+                      <strong>Instructions:</strong> {bankAccountInfo.instructions}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Error Message */}
           {error && (
