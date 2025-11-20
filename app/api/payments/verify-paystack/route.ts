@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create payment record
-    const paymentData = {
+    const paymentData: any = {
       tenantId,
       studentId: transaction.studentId,
       studentFeeId: transaction.studentFeeId,
@@ -160,7 +160,6 @@ export async function POST(request: NextRequest) {
       onlinePaymentStatus: 'successful',
       transactionReference: reference,
       receiptNumber,
-      receiptUrl: undefined, // TODO: Generate PDF receipt
       notes: `Paystack payment - ${verifyData.data.channel}`,
       recordedBy: transaction.guardianId,
       recordedAt: Timestamp.now(),
@@ -168,6 +167,8 @@ export async function POST(request: NextRequest) {
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     };
+
+    // TODO: Generate PDF receipt and add receiptUrl field
 
     const paymentRef = await adminDb.collection('payments').add(paymentData);
 
