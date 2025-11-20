@@ -19,7 +19,7 @@ import {
 export default function PaymentCallbackPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const [status, setStatus] = useState<'verifying' | 'success' | 'failed'>('verifying');
   const [message, setMessage] = useState('Verifying your payment...');
   const [paymentDetails, setPaymentDetails] = useState<any>(null);
@@ -38,9 +38,14 @@ export default function PaymentCallbackPage() {
         return;
       }
 
+      // Wait for auth to finish loading
+      if (loading) {
+        return;
+      }
+
       if (!user?.tenantId) {
         setStatus('failed');
-        setMessage('Authentication required');
+        setMessage('Authentication required. Please log in and try again.');
         return;
       }
 
@@ -85,10 +90,10 @@ export default function PaymentCallbackPage() {
       }
     };
 
-    if (user) {
+    if (!loading) {
       verifyPayment();
     }
-  }, [searchParams, user]);
+  }, [searchParams, user, loading]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-NG', {
@@ -159,19 +164,30 @@ export default function PaymentCallbackPage() {
               <p className="text-gray-600 mb-6">{message}</p>
 
               <div className="space-y-3">
-                <Button
-                  onClick={() => router.push('/parent/fees')}
-                  className="w-full"
-                >
-                  Try Again
-                </Button>
-                <Button
-                  onClick={() => router.push('/parent/dashboard')}
-                  variant="outline"
-                  className="w-full"
-                >
-                  Go to Dashboard
-                </Button>
+                {message.includes('Authentication') ? (
+                  <Button
+                    onClick={() => router.push('/login')}
+                    className="w-full"
+                  >
+                    Login to Continue
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      onClick={() => router.push('/parent/fees')}
+                      className="w-full"
+                    >
+                      Try Again
+                    </Button>
+                    <Button
+                      onClick={() => router.push('/parent/dashboard')}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      Go to Dashboard
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           )}
