@@ -160,7 +160,32 @@ export async function GET(request: NextRequest) {
     // Order by submission date (newest first)
     query = query.orderBy('submittedAt', 'desc');
 
-    const snapshot = await query.get();
+    let snapshot;
+    try {
+      snapshot = await query.get();
+    } catch (queryError: any) {
+      // If index error, try without orderBy
+      if (queryError.message && queryError.message.includes('index')) {
+        console.warn('Firestore index required, fetching without orderBy');
+
+        // Retry without orderBy
+        let retryQuery = adminDb
+          .collection('bank_transfer_submissions')
+          .where('tenantId', '==', tenantId);
+
+        if (userId) {
+          retryQuery = retryQuery.where('submittedBy', '==', userId);
+        }
+
+        if (status) {
+          retryQuery = retryQuery.where('status', '==', status);
+        }
+
+        snapshot = await retryQuery.get();
+      } else {
+        throw queryError;
+      }
+    }
 
     const submissions = snapshot.docs.map((doc: any) => {
       const data = doc.data();
@@ -184,16 +209,25 @@ export async function GET(request: NextRequest) {
       };
     });
 
+    // Sort by submittedAt descending (newest first) in case we couldn't use orderBy
+    submissions.sort((a, b) => {
+      const dateA = a.submittedAt ? new Date(a.submittedAt).getTime() : 0;
+      const dateB = b.submittedAt ? new Date(b.submittedAt).getTime() : 0;
+      return dateB - dateA;
+    });
+
     return NextResponse.json({
       success: true,
       submissions,
     });
   } catch (error: any) {
     console.error('Get bank transfer submissions error:', error);
+    console.error('Error stack:', error.stack);
     return NextResponse.json(
       {
         error: 'Failed to retrieve submissions',
         details: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
       },
       { status: 500 }
     );
