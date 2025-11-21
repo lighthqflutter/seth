@@ -164,15 +164,23 @@ export async function GET(request: NextRequest) {
 
     const submissions = snapshot.docs.map((doc: any) => {
       const data = doc.data();
+
+      // Helper to safely convert Firestore timestamp
+      const toISOString = (timestamp: any) => {
+        if (!timestamp) return undefined;
+        if (timestamp.toDate) return timestamp.toDate().toISOString();
+        if (timestamp instanceof Date) return timestamp.toISOString();
+        return timestamp;
+      };
+
       return {
         id: doc.id,
         ...data,
         // Convert Timestamps to ISO strings for JSON serialization
-        paymentDate: data.paymentDate?.toDate().toISOString(),
-        submittedAt: data.submittedAt?.toDate().toISOString(),
-        reviewedAt: data.reviewedAt?.toDate().toISOString(),
-        createdAt: data.createdAt?.toDate().toISOString(),
-        updatedAt: data.updatedAt?.toDate().toISOString(),
+        submittedAt: toISOString(data.submittedAt),
+        reviewedAt: toISOString(data.reviewedAt),
+        createdAt: toISOString(data.createdAt),
+        updatedAt: toISOString(data.updatedAt),
       };
     });
 

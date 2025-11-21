@@ -28,6 +28,7 @@ import {
   DocumentTextIcon,
   CogIcon,
   DocumentPlusIcon,
+  BanknotesIcon,
 } from '@heroicons/react/24/outline';
 import { StudentFee, Payment, FeeStatistics } from '@/types/fees';
 import { calculatePaymentSummary, formatCurrency } from '@/lib/feeHelpers';
@@ -524,7 +525,7 @@ export default function FeesPage() {
           <CardTitle>Quick Actions</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <Button
               variant="outline"
               className="h-auto py-6 flex-col"
@@ -548,6 +549,14 @@ export default function FeesPage() {
             >
               <CheckCircleIcon className="h-8 w-8 mb-2" />
               <span>Record Payment</span>
+            </Button>
+            <Button
+              variant="outline"
+              className="h-auto py-6 flex-col"
+              onClick={() => router.push('/dashboard/fees/bank-transfers')}
+            >
+              <BanknotesIcon className="h-8 w-8 mb-2" />
+              <span>Bank Transfers</span>
             </Button>
             <Button
               variant="outline"
