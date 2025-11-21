@@ -210,7 +210,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Sort by submittedAt descending (newest first) in case we couldn't use orderBy
-    submissions.sort((a, b) => {
+    submissions.sort((a: any, b: any) => {
       const dateA = a.submittedAt ? new Date(a.submittedAt).getTime() : 0;
       const dateB = b.submittedAt ? new Date(b.submittedAt).getTime() : 0;
       return dateB - dateA;
