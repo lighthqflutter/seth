@@ -105,6 +105,13 @@ export async function POST(request: NextRequest) {
     // Generate unique transaction reference
     const transactionReference = `${tenantId}_${studentFeeId}_${Date.now()}`;
 
+    // Get the current host from the request to preserve subdomain
+    const host = request.headers.get('host') || '';
+    const protocol = host.includes('localhost') ? 'http' : 'https';
+    const callbackUrl = `${protocol}://${host}/payment-callback`;
+
+    console.log('Paystack callback URL:', callbackUrl);
+
     // Initialize Paystack payment
     const paystackResponse = await fetch('https://api.paystack.co/transaction/initialize', {
       method: 'POST',
@@ -117,7 +124,7 @@ export async function POST(request: NextRequest) {
         amount: Math.round(studentFee.amountOutstanding * 100), // Convert to kobo
         currency: 'NGN',
         reference: transactionReference,
-        callback_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://seth.ng'}/parent/fees/payment-callback`,
+        callback_url: callbackUrl,
         metadata: {
           tenantId,
           studentFeeId,

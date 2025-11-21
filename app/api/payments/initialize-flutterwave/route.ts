@@ -105,6 +105,13 @@ export async function POST(request: NextRequest) {
     // Generate unique transaction reference
     const transactionReference = `FLW_${tenantId}_${studentFeeId}_${Date.now()}`;
 
+    // Get the current host from the request to preserve subdomain
+    const host = request.headers.get('host') || '';
+    const protocol = host.includes('localhost') ? 'http' : 'https';
+    const callbackUrl = `${protocol}://${host}/payment-callback`;
+
+    console.log('Flutterwave redirect URL:', callbackUrl);
+
     // Initialize Flutterwave payment
     const flutterwaveResponse = await fetch('https://api.flutterwave.com/v3/payments', {
       method: 'POST',
@@ -116,7 +123,7 @@ export async function POST(request: NextRequest) {
         tx_ref: transactionReference,
         amount: studentFee.amountOutstanding,
         currency: 'NGN',
-        redirect_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://seth.ng'}/parent/fees/payment-callback`,
+        redirect_url: callbackUrl,
         payment_options: 'card,banktransfer,ussd',
         customer: {
           email: userData?.email,

@@ -312,7 +312,7 @@ const ReceiptPDF: React.FC<ReceiptPDFProps> = ({ payment, studentFee, student, s
           <View style={styles.row}>
             <Text style={styles.label}>Previous Payments:</Text>
             <Text style={styles.value}>
-              {formatCurrency(studentFee.amountPaid - payment.amount)}
+              {formatCurrency(Math.max(0, studentFee.amountPaid - payment.amount))}
             </Text>
           </View>
           <View style={styles.row}>
@@ -326,13 +326,13 @@ const ReceiptPDF: React.FC<ReceiptPDFProps> = ({ payment, studentFee, student, s
           <View style={styles.row}>
             <Text style={styles.label}>Outstanding Balance:</Text>
             <Text style={[styles.value, { color: '#ef4444' }]}>
-              {formatCurrency(studentFee.amountOutstanding - payment.amount)}
+              {formatCurrency(Math.max(0, studentFee.amountOutstanding))}
             </Text>
           </View>
         </View>
 
         {/* Payment Status Stamp */}
-        {studentFee.amountOutstanding - payment.amount === 0 && (
+        {studentFee.amountOutstanding === 0 && (
           <View style={styles.stamp}>
             <Text style={styles.stampText}>✓ FULLY PAID</Text>
           </View>
