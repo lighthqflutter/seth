@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/admin';
 import { Timestamp, FieldValue } from 'firebase-admin/firestore';
+import { sendPaymentReceiptNotification } from '@/lib/email/feeNotifications';
 
 /**
  * Verify Flutterwave Payment
@@ -231,8 +232,57 @@ export async function POST(request: NextRequest) {
       updatedAt: Timestamp.now(),
     });
 
-    // TODO: Send payment confirmation email
-    // TODO: Generate PDF receipt
+    // Send payment confirmation email (async, non-blocking)
+    try {
+      // Get guardian details
+      const guardianDoc = await adminDb.collection('users').doc(transaction.guardianId).get();
+      const guardian = guardianDoc.data();
+
+      // Get student details
+      const studentDoc = await adminDb.collection('students').doc(transaction.studentId).get();
+      const student = studentDoc.data();
+
+      // Get tenant/school details
+      const tenantDoc = await adminDb.collection('tenants').doc(tenantId).get();
+      const tenant = tenantDoc.data();
+
+      if (guardian && student && tenant) {
+        // Send email notification (don't await - let it run in background)
+        sendPaymentReceiptNotification({
+          parentEmail: guardian.email,
+          parentName: guardian.name || `${guardian.firstName || ''} ${guardian.lastName || ''}`.trim(),
+          student: {
+            firstName: student.firstName,
+            lastName: student.lastName,
+            admissionNumber: student.admissionNumber,
+            currentClassName: student.currentClassName,
+          },
+          payment: {
+            receiptNumber,
+            amount: verifyData.data.amount,
+            paymentMethod: 'Flutterwave',
+            paymentDate: new Date(),
+            feeName: studentFee.feeName,
+            balanceRemaining: amountOutstanding,
+          },
+          school: {
+            name: tenant.schoolName || 'School',
+            address: tenant.address,
+            phone: tenant.phone,
+            email: tenant.email,
+            logo: tenant.logo,
+          },
+        }).catch(emailError => {
+          console.error('Failed to send payment receipt email:', emailError);
+          // Don't fail the payment if email fails
+        });
+
+        console.log('Payment receipt email sent to:', guardian.email);
+      }
+    } catch (emailError) {
+      console.error('Error preparing payment receipt email:', emailError);
+      // Don't fail the payment if email fails
+    }
 
     return NextResponse.json({
       success: true,

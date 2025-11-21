@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/admin';
 import { Timestamp } from 'firebase-admin/firestore';
+import { sendBankTransferSubmissionNotification } from '@/lib/email/feeNotifications';
 
 /**
  * Submit Bank Transfer Payment
@@ -99,8 +100,65 @@ export async function POST(request: NextRequest) {
 
     console.log('Bank transfer submission created:', submissionRef.id);
 
-    // TODO: Send notification to finance team
-    // TODO: Send confirmation email to parent
+    // Send notification to finance team (async, non-blocking)
+    try {
+      // Get parent details
+      const parentDoc = await adminDb.collection('users').doc(userId).get();
+      const parent = parentDoc.data();
+
+      // Get student details
+      const studentDoc = await adminDb.collection('students').doc(studentFee.studentId).get();
+      const student = studentDoc.data();
+
+      // Get tenant/school details
+      const tenantDoc = await adminDb.collection('tenants').doc(tenantId).get();
+      const tenant = tenantDoc.data();
+
+      // Get finance users
+      const financeUsersQuery = await adminDb
+        .collection('users')
+        .where('tenantId', '==', tenantId)
+        .where('role', 'in', ['admin', 'finance'])
+        .get();
+
+      const financeEmails = financeUsersQuery.docs
+        .map((doc: any) => doc.data().email)
+        .filter((email: string) => email);
+
+      if (parent && student && tenant && financeEmails.length > 0) {
+        // Send email notification (don't await - let it run in background)
+        sendBankTransferSubmissionNotification({
+          financeEmails,
+          parentName: parent.name || `${parent.firstName || ''} ${parent.lastName || ''}`.trim(),
+          student: {
+            firstName: student.firstName,
+            lastName: student.lastName,
+            admissionNumber: student.admissionNumber,
+            currentClassName: student.currentClassName,
+          },
+          transfer: {
+            amount,
+            feeName: studentFee.feeName,
+            fileName,
+            submittedAt: new Date(),
+          },
+          submissionId: submissionRef.id,
+          school: {
+            name: tenant.schoolName || 'School',
+            address: tenant.address,
+            phone: tenant.phone,
+            email: tenant.email,
+            logo: tenant.logo,
+          },
+        }).catch(emailError => {
+          console.error('Failed to send bank transfer notification email:', emailError);
+        });
+
+        console.log('Bank transfer notification email sent to finance team:', financeEmails);
+      }
+    } catch (emailError) {
+      console.error('Error preparing bank transfer notification email:', emailError);
+    }
 
     return NextResponse.json({
       success: true,

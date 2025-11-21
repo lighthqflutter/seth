@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/admin';
 import { Timestamp } from 'firebase-admin/firestore';
+import { sendBankTransferRejectionNotification } from '@/lib/email/feeNotifications';
 
 /**
  * Reject Bank Transfer Payment
@@ -75,7 +76,54 @@ export async function POST(request: NextRequest) {
       reason: reason.trim(),
     });
 
-    // TODO: Send rejection notification email to parent
+    // Send rejection notification email to parent (async, non-blocking)
+    try {
+      // Get parent details
+      const parentDoc = await adminDb.collection('users').doc(submission.submittedBy).get();
+      const parent = parentDoc.data();
+
+      // Get student details
+      const studentDoc = await adminDb.collection('students').doc(submission.studentId).get();
+      const student = studentDoc.data();
+
+      // Get tenant/school details
+      const tenantDoc = await adminDb.collection('tenants').doc(tenantId).get();
+      const tenant = tenantDoc.data();
+
+      if (parent && student && tenant) {
+        // Send email notification (don't await - let it run in background)
+        sendBankTransferRejectionNotification({
+          parentEmail: parent.email,
+          parentName: parent.name || `${parent.firstName || ''} ${parent.lastName || ''}`.trim(),
+          student: {
+            firstName: student.firstName,
+            lastName: student.lastName,
+            admissionNumber: student.admissionNumber,
+            currentClassName: student.currentClassName,
+          },
+          transfer: {
+            amount: submission.amount,
+            feeName: submission.feeName,
+            fileName: submission.fileName,
+            submittedAt: submission.submittedAt?.toDate ? submission.submittedAt.toDate() : new Date(submission.submittedAt),
+          },
+          rejectionReason: reason.trim(),
+          school: {
+            name: tenant.schoolName || 'School',
+            address: tenant.address,
+            phone: tenant.phone,
+            email: tenant.email,
+            logo: tenant.logo,
+          },
+        }).catch(emailError => {
+          console.error('Failed to send bank transfer rejection email:', emailError);
+        });
+
+        console.log('Bank transfer rejection email sent to:', parent.email);
+      }
+    } catch (emailError) {
+      console.error('Error preparing bank transfer rejection email:', emailError);
+    }
 
     return NextResponse.json({
       success: true,

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/admin';
 import { Timestamp, FieldValue } from 'firebase-admin/firestore';
+import { sendBankTransferApprovalNotification } from '@/lib/email/feeNotifications';
 
 /**
  * Approve Bank Transfer Payment
@@ -157,8 +158,55 @@ export async function POST(request: NextRequest) {
       receiptNumber,
     });
 
-    // TODO: Send approval notification email
-    // TODO: Generate PDF receipt
+    // Send approval notification email to parent (async, non-blocking)
+    try {
+      // Get parent details
+      const parentDoc = await adminDb.collection('users').doc(submission.submittedBy).get();
+      const parent = parentDoc.data();
+
+      // Get student details
+      const studentDoc = await adminDb.collection('students').doc(submission.studentId).get();
+      const student = studentDoc.data();
+
+      // Get tenant/school details
+      const tenantDoc = await adminDb.collection('tenants').doc(tenantId).get();
+      const tenant = tenantDoc.data();
+
+      if (parent && student && tenant) {
+        // Send email notification (don't await - let it run in background)
+        sendBankTransferApprovalNotification({
+          parentEmail: parent.email,
+          parentName: parent.name || `${parent.firstName || ''} ${parent.lastName || ''}`.trim(),
+          student: {
+            firstName: student.firstName,
+            lastName: student.lastName,
+            admissionNumber: student.admissionNumber,
+            currentClassName: student.currentClassName,
+          },
+          payment: {
+            receiptNumber,
+            amount: submission.amount,
+            paymentMethod: 'Bank Transfer',
+            paymentDate: new Date(),
+            feeName: submission.feeName,
+            balanceRemaining: amountOutstanding,
+          },
+          school: {
+            name: tenant.schoolName || 'School',
+            address: tenant.address,
+            phone: tenant.phone,
+            email: tenant.email,
+            logo: tenant.logo,
+          },
+        }).catch(emailError => {
+          console.error('Failed to send bank transfer approval email:', emailError);
+        });
+
+        console.log('Bank transfer approval email sent to:', parent.email);
+      }
+    } catch (emailError) {
+      console.error('Error preparing bank transfer approval email:', emailError);
+    }
 
     return NextResponse.json({
       success: true,
