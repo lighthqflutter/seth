@@ -36,7 +36,11 @@ export async function GET(
     let paymentDoc = await adminDb.collection('payments').doc(receiptId).get();
     let paymentData: any = null;
 
-    console.log('Looking for payment with ID:', receiptId);
+    console.log('Receipt API called with:', {
+      receiptId,
+      tenantId,
+      userId,
+    });
 
     if (paymentDoc.exists) {
       // Direct payment ID was provided
@@ -44,18 +48,42 @@ export async function GET(
       paymentData = { id: paymentDoc.id, ...paymentDoc.data() };
     } else {
       // Try loading as studentFeeId - get most recent payment for this fee
-      console.log('Payment ID not found, trying studentFeeId query');
-      const paymentsQuery = await adminDb
-        .collection('payments')
-        .where('studentFeeId', '==', receiptId)
-        .where('tenantId', '==', tenantId)
-        .orderBy('paymentDate', 'desc')
-        .limit(1)
-        .get();
+      console.log('Payment ID not found, trying studentFeeId query with:', {
+        studentFeeId: receiptId,
+        tenantId,
+      });
 
-      console.log('Query returned', paymentsQuery.size, 'results');
+      let snapshot;
 
-      if (paymentsQuery.empty) {
+      try {
+        // Try with orderBy first
+        snapshot = await adminDb
+          .collection('payments')
+          .where('studentFeeId', '==', receiptId)
+          .where('tenantId', '==', tenantId)
+          .orderBy('paymentDate', 'desc')
+          .limit(1)
+          .get();
+
+        console.log('Query with orderBy returned', snapshot.size, 'results');
+      } catch (queryError: any) {
+        // If index error, try without orderBy
+        if (queryError.message && queryError.message.includes('index')) {
+          console.warn('Firestore index required for payments query, fetching without orderBy');
+
+          snapshot = await adminDb
+            .collection('payments')
+            .where('studentFeeId', '==', receiptId)
+            .where('tenantId', '==', tenantId)
+            .get();
+
+          console.log('Query without orderBy returned', snapshot.size, 'results');
+        } else {
+          throw queryError;
+        }
+      }
+
+      if (snapshot.empty) {
         // Log all payments for this tenant to help debug
         const allPaymentsQuery = await adminDb
           .collection('payments')
@@ -65,21 +93,41 @@ export async function GET(
 
         console.log('Total payments for tenant:', allPaymentsQuery.size);
         allPaymentsQuery.docs.forEach((doc: any) => {
-          console.log('Payment:', doc.id, 'studentFeeId:', doc.data().studentFeeId);
+          const paymentData = doc.data();
+          console.log('Payment:', {
+            id: doc.id,
+            studentFeeId: paymentData.studentFeeId,
+            studentId: paymentData.studentId,
+            studentName: paymentData.studentName,
+            amount: paymentData.amount,
+            paymentMethod: paymentData.paymentMethod,
+          });
         });
 
         return NextResponse.json(
           {
             error: 'Receipt not found',
-            details: `No payment record found for fee ${receiptId} in tenant ${tenantId}`
+            details: `No payment record found for fee ${receiptId} in tenant ${tenantId}. Check server logs for all payments.`
           },
           { status: 404 }
         );
       }
 
+      // Get the most recent payment if multiple
+      let targetPayment = snapshot.docs[0];
+      if (snapshot.docs.length > 1) {
+        // Sort by paymentDate if we didn't use orderBy
+        const sortedDocs = snapshot.docs.sort((a: any, b: any) => {
+          const dateA = a.data().paymentDate?.toDate?.() || new Date(0);
+          const dateB = b.data().paymentDate?.toDate?.() || new Date(0);
+          return dateB.getTime() - dateA.getTime();
+        });
+        targetPayment = sortedDocs[0];
+      }
+
       paymentData = {
-        id: paymentsQuery.docs[0].id,
-        ...paymentsQuery.docs[0].data(),
+        id: targetPayment.id,
+        ...targetPayment.data(),
       };
       console.log('Found payment by studentFeeId:', paymentData.id);
     }

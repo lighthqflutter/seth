@@ -104,6 +104,7 @@ export async function POST(request: NextRequest) {
     const paymentData: any = {
       tenantId,
       studentId: submission.studentId,
+      studentName: submission.studentName, // Include student name for payment history
       studentFeeId: submission.studentFeeId,
       amount: submission.amount,
       paymentMethod: 'bank_transfer',
@@ -117,6 +118,14 @@ export async function POST(request: NextRequest) {
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     };
+
+    console.log('Creating payment record:', {
+      studentFeeId: submission.studentFeeId,
+      studentId: submission.studentId,
+      studentName: submission.studentName,
+      amount: submission.amount,
+      receiptNumber,
+    });
 
     const paymentRef = await adminDb.collection('payments').add(paymentData);
 
