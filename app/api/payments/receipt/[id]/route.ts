@@ -36,11 +36,15 @@ export async function GET(
     let paymentDoc = await adminDb.collection('payments').doc(receiptId).get();
     let paymentData: any = null;
 
+    console.log('Looking for payment with ID:', receiptId);
+
     if (paymentDoc.exists) {
       // Direct payment ID was provided
+      console.log('Found payment by direct ID');
       paymentData = { id: paymentDoc.id, ...paymentDoc.data() };
     } else {
       // Try loading as studentFeeId - get most recent payment for this fee
+      console.log('Payment ID not found, trying studentFeeId query');
       const paymentsQuery = await adminDb
         .collection('payments')
         .where('studentFeeId', '==', receiptId)
@@ -49,9 +53,26 @@ export async function GET(
         .limit(1)
         .get();
 
+      console.log('Query returned', paymentsQuery.size, 'results');
+
       if (paymentsQuery.empty) {
+        // Log all payments for this tenant to help debug
+        const allPaymentsQuery = await adminDb
+          .collection('payments')
+          .where('tenantId', '==', tenantId)
+          .limit(10)
+          .get();
+
+        console.log('Total payments for tenant:', allPaymentsQuery.size);
+        allPaymentsQuery.docs.forEach((doc: any) => {
+          console.log('Payment:', doc.id, 'studentFeeId:', doc.data().studentFeeId);
+        });
+
         return NextResponse.json(
-          { error: 'Receipt not found' },
+          {
+            error: 'Receipt not found',
+            details: `No payment record found for fee ${receiptId} in tenant ${tenantId}`
+          },
           { status: 404 }
         );
       }
@@ -60,6 +81,7 @@ export async function GET(
         id: paymentsQuery.docs[0].id,
         ...paymentsQuery.docs[0].data(),
       };
+      console.log('Found payment by studentFeeId:', paymentData.id);
     }
 
     // Verify tenant matches
