@@ -135,10 +135,12 @@ export default function ParentReceiptPage({ params }: ReceiptPageProps) {
     );
   }
 
-  const paymentDate =
-    payment.paymentDate instanceof Date
-      ? payment.paymentDate
-      : payment.paymentDate.toDate();
+  // Payment date is already a Date object from the API response
+  const paymentDate = payment.paymentDate instanceof Date
+    ? payment.paymentDate
+    : (payment.paymentDate as any)?.toDate
+    ? (payment.paymentDate as any).toDate()
+    : new Date(payment.paymentDate as any);
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
