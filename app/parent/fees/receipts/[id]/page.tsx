@@ -84,7 +84,7 @@ export default function ParentReceiptPage({ params }: ReceiptPageProps) {
         throw new Error(data.error || 'Failed to load receipt');
       }
 
-      // Convert ISO date strings back to Date objects for payment date
+      // Convert ISO date strings back to Date objects
       const paymentData = {
         ...data.payment,
         paymentDate: data.payment.paymentDate
@@ -92,8 +92,15 @@ export default function ParentReceiptPage({ params }: ReceiptPageProps) {
           : new Date(),
       };
 
+      const studentFeeData = {
+        ...data.studentFee,
+        dueDate: data.studentFee.dueDate
+          ? new Date(data.studentFee.dueDate)
+          : undefined,
+      };
+
       setPayment(paymentData);
-      setStudentFee(data.studentFee);
+      setStudentFee(studentFeeData);
       setStudent(data.student);
       setSchool(data.school);
     } catch (error: any) {
