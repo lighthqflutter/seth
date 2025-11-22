@@ -203,15 +203,19 @@ const styles = StyleSheet.create({
 });
 
 const ReceiptPDF: React.FC<ReceiptPDFProps> = ({ payment, studentFee, student, school }) => {
-  const paymentDate =
-    payment.paymentDate instanceof Date
-      ? payment.paymentDate
-      : payment.paymentDate.toDate();
+  // Handle payment date - could be Date object, Firestore Timestamp, or ISO string
+  const paymentDate = payment.paymentDate instanceof Date
+    ? payment.paymentDate
+    : (payment.paymentDate as any)?.toDate
+    ? (payment.paymentDate as any).toDate()
+    : new Date(payment.paymentDate as any);
 
-  const dueDate =
-    studentFee.dueDate instanceof Date
-      ? studentFee.dueDate
-      : studentFee.dueDate.toDate();
+  // Handle due date - could be Date object, Firestore Timestamp, or ISO string
+  const dueDate = studentFee.dueDate instanceof Date
+    ? studentFee.dueDate
+    : (studentFee.dueDate as any)?.toDate
+    ? (studentFee.dueDate as any).toDate()
+    : new Date(studentFee.dueDate as any);
 
   return (
     <Document>
