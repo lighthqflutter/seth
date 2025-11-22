@@ -208,10 +208,14 @@ const ReceiptPDF: React.FC<ReceiptPDFProps> = ({ payment, studentFee, student, s
     ? payment.paymentDate
     : (payment.paymentDate as any)?.toDate
     ? (payment.paymentDate as any).toDate()
-    : new Date(payment.paymentDate as any);
+    : payment.paymentDate
+    ? new Date(payment.paymentDate as any)
+    : new Date();
 
-  // Handle due date - could be Date object, Firestore Timestamp, or ISO string
-  const dueDate = studentFee.dueDate instanceof Date
+  // Handle due date - could be Date object, Firestore Timestamp, ISO string, or undefined
+  const dueDate = !studentFee.dueDate
+    ? undefined
+    : studentFee.dueDate instanceof Date
     ? studentFee.dueDate
     : (studentFee.dueDate as any)?.toDate
     ? (studentFee.dueDate as any).toDate()

@@ -96,7 +96,7 @@ export default function ParentReceiptPage({ params }: ReceiptPageProps) {
         ...data.studentFee,
         dueDate: data.studentFee.dueDate
           ? new Date(data.studentFee.dueDate)
-          : undefined,
+          : null,
       };
 
       setPayment(paymentData);
@@ -142,12 +142,14 @@ export default function ParentReceiptPage({ params }: ReceiptPageProps) {
     );
   }
 
-  // Payment date is already a Date object from the API response
+  // Payment date should be a Date object from line 91 conversion
   const paymentDate = payment.paymentDate instanceof Date
     ? payment.paymentDate
     : (payment.paymentDate as any)?.toDate
     ? (payment.paymentDate as any).toDate()
-    : new Date(payment.paymentDate as any);
+    : payment.paymentDate
+    ? new Date(payment.paymentDate as any)
+    : new Date();
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
